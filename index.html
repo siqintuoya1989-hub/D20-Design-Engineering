@@ -1,0 +1,3023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI驱动下的设计工程化 · 众安 UED 内部分享</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,500&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090D; --bg-soft:#0C1017; --card:rgba(18,22,31,.78); --card-2:#161C28;
+  --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.16);
+  --tx:#F2F5FA; --tx-2:#A8B2C3; --tx-3:#667184;
+  --g:#34E0A1; --b:#5B9BFF; --v:#A78BFA; --a:#F5B14C; --code:#080B12;
+  --scroll-track:#0A0D13; --scroll-thumb:#2A3344; --scroll-thumb-hover:#3D4A60;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sans:"Instrument Sans","Noto Sans SC","PingFang SC","HarmonyOS Sans SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --radius:16px;
+  --gap:16px; --gap-md:24px; --gap-lg:36px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body.has-cursor,body.has-cursor a,body.has-cursor button{cursor:none}
+body.coarse-pointer,body.coarse-pointer a,body.coarse-pointer button{cursor:auto}
+body{
+  background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.7;
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+  background-image:
+    radial-gradient(1200px 600px at 85% -10%,rgba(52,224,161,.08),transparent 55%),
+    radial-gradient(900px 500px at -5% 30%,rgba(91,155,255,.07),transparent 50%),
+    linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);
+  background-size:auto,auto,48px 48px,48px 48px;
+  background-attachment:fixed;
+}
+b,strong{font-weight:650;color:#fff}
+::selection{background:rgba(52,224,161,.28);color:#fff}
+
+/* ============ 暗色滚动条（全局） ============ */
+*{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) var(--scroll-track)}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-track{background:var(--scroll-track)}
+*::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:999px;border:2px solid var(--scroll-track)}
+*::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover)}
+*::-webkit-scrollbar-corner{background:var(--scroll-track)}
+
+/* ============ 布局：舞台 ============ */
+.stage{height:100vh;overflow-y:auto;scroll-snap-type:y mandatory;scroll-behavior:smooth}
+.slide{
+  min-height:100vh;scroll-snap-align:start;scroll-snap-stop:always;
+  display:flex;flex-direction:column;justify-content:flex-start;
+  padding:72px 7vw 56px;position:relative;overflow:hidden;
+}
+.slide::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;opacity:0;
+  background:radial-gradient(700px 320px at 70% 20%,rgba(52,224,161,.06),transparent 70%);
+  transition:opacity .8s var(--ease);
+}
+.slide.is-active::before{opacity:1}
+.slide-in{max-width:1120px;margin:auto auto;width:100%;position:relative;z-index:2}
+
+/* 入场动效 */
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.slide.is-active .reveal{opacity:1;transform:none}
+.slide.is-active .reveal-d1{transition-delay:.08s}
+.slide.is-active .reveal-d2{transition-delay:.16s}
+.slide.is-active .reveal-d3{transition-delay:.24s}
+.slide.is-active .reveal-d4{transition-delay:.32s}
+.slide.is-active .reveal-d5{transition-delay:.4s}
+.slide.is-active .reveal-d6{transition-delay:.48s}
+@media (prefers-reduced-motion:reduce){
+  .reveal,.slide.is-active .reveal{opacity:1;transform:none;transition:none}
+  .glow{animation:none!important}
+}
+
+/* 顶栏 */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:60;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(7,9,13,.72);backdrop-filter:blur(18px) saturate(140%);border-bottom:1px solid var(--line)}
+.tb-l{font-size:12.5px;color:var(--tx-3);letter-spacing:.2px;display:flex;align-items:center;gap:12px}
+.tb-l b{color:var(--tx);font-weight:600}
+.tb-spk{font-family:var(--mono);font-size:11px;letter-spacing:.6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--tx-2)}
+.tb-spk.sy{color:var(--b);border-color:rgba(91,155,255,.4);background:rgba(91,155,255,.1)}
+.tb-spk.fm{color:var(--g);border-color:rgba(52,224,161,.35);background:rgba(52,224,161,.08)}
+.tb-spk.lyj{color:var(--v);border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.1)}
+.tb-spk.us{color:var(--a);border-color:rgba(245,177,76,.35);background:rgba(245,177,76,.08)}
+.tb-brand{display:inline-flex;align-items:center;gap:10px;margin-right:14px}
+.tb-brand .mark{width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 0 4px rgba(52,224,161,.15);animation:pulseDot 2.4s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.7}}
+.tb-r{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--tx-3)}
+.tb-r .hint{opacity:.75}
+.tb-r kbd{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:6px;padding:2px 6px;color:var(--tx-2)}
+.progress{position:fixed;top:56px;left:0;height:2px;background:linear-gradient(90deg,var(--g),var(--b) 55%,var(--v));width:0;z-index:59;transition:width .35s var(--ease);box-shadow:0 0 12px rgba(52,224,161,.35)}
+.pagenum{position:fixed;bottom:22px;left:28px;z-index:58;font-family:var(--mono);font-size:12px;color:var(--tx-3);letter-spacing:.5px}
+.pagenum b{color:var(--tx);font-weight:600}
+
+/* 左侧书脊目录 */
+.side-nav{
+  position:fixed;left:22px;top:50%;transform:translateY(-50%);z-index:58;
+  width:76px;padding:8px 0;display:flex;flex-direction:column;gap:2px;
+}
+.side-nav::before{
+  content:"";position:absolute;left:4px;top:22px;bottom:22px;width:1px;
+  background:linear-gradient(180deg,transparent,rgba(255,255,255,.14) 10%,rgba(255,255,255,.14) 90%,transparent);
+  pointer-events:none;
+}
+.side-nav button{
+  display:grid;grid-template-columns:9px 1fr;gap:12px;align-items:center;
+  width:100%;height:auto;margin:0;padding:9px 0;background:none;border:0;
+  cursor:pointer;text-align:left;color:var(--tx-3);border-radius:0;
+}
+.side-nav button:hover{background:none;transform:none}
+.sn-dot{
+  width:7px;height:7px;border-radius:50%;box-sizing:border-box;justify-self:center;position:relative;z-index:1;
+  border:1px solid rgba(255,255,255,.28);background:transparent;
+  transition:background .3s,border-color .3s,box-shadow .3s,transform .3s var(--ease);
+}
+.side-nav button.done .sn-dot{background:rgba(255,255,255,.32);border-color:transparent}
+.side-nav button.on .sn-dot{
+  transform:scale(1.15);border-color:transparent;
+  background:var(--g);box-shadow:0 0 10px rgba(52,224,161,.45);
+}
+.side-nav button.on.sy .sn-dot{background:var(--b);box-shadow:0 0 10px rgba(91,155,255,.45)}
+.side-nav button.on.lyj .sn-dot{background:var(--v);box-shadow:0 0 10px rgba(167,139,250,.45)}
+.sn-meta{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.sn-no{
+  font-family:var(--mono);font-size:9px;font-weight:500;letter-spacing:.16em;
+  color:rgba(255,255,255,.28);line-height:1;
+}
+.sn-name{
+  font-size:13px;font-weight:500;letter-spacing:.12em;color:rgba(255,255,255,.32);
+  line-height:1.2;white-space:nowrap;transition:color .25s;
+}
+.side-nav button:hover .sn-name{color:rgba(255,255,255,.7)}
+.side-nav button.on .sn-no{color:rgba(255,255,255,.45)}
+.side-nav button.on .sn-name{color:#fff;font-weight:650;letter-spacing:.14em}
+.sn-bar{
+  display:block;height:1px;width:0;opacity:0;margin-top:2px;
+  background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;
+  transition:width .3s var(--ease),opacity .3s;
+}
+.side-nav button.on .sn-bar{width:28px;opacity:1}
+.sn-bar i{display:block;height:100%;width:0;border-radius:inherit;background:var(--g);transition:width .35s var(--ease)}
+.side-nav button.on.sy .sn-bar i{background:var(--b)}
+.side-nav button.on.lyj .sn-bar i{background:var(--v)}
+
+/* ============ 通用排版 ============ */
+.eyebrow,.kick{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.16em;font-weight:500;color:var(--g);margin-bottom:16px;font-family:var(--mono);text-transform:uppercase}
+.eyebrow::before,.kick::before{content:"";width:20px;height:1px;background:currentColor;opacity:.8;flex:none}
+.eyebrow.blue,.kick.blue{color:var(--b)}
+.eyebrow.violet,.kick.violet{color:var(--v)}
+.eyebrow.amber,.kick.amber{color:var(--a)}
+h1.t,h2.t,.cover h1,.bigquote,.agi .tt,.term .abbr{letter-spacing:-.03em}
+h1.t{font-size:clamp(30px,4vw,48px);line-height:1.2;font-weight:700}
+h2.t{font-size:clamp(24px,2.55vw,34px);line-height:1.28;font-weight:650;margin-bottom:8px;max-width:860px;letter-spacing:-.035em;color:var(--tx)}
+.sub{font-size:clamp(14px,1.15vw,15.5px);color:var(--tx-2);max-width:680px;margin-top:6px;margin-bottom:0;line-height:1.7;font-weight:400}
+.lede{font-size:clamp(15px,1.35vw,17.5px);color:var(--tx-2);line-height:1.75;max-width:760px}
+.accent{color:var(--g)}.blue{color:var(--b)}.violet{color:var(--v)}.amber{color:var(--a)}
+.mono{font-family:var(--mono)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+.two-w{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:start}
+.two-wr{display:grid;grid-template-columns:.92fr 1.08fr;gap:40px;align-items:center}
+.mt{margin-top:28px}.mt-lg{margin-top:40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;backdrop-filter:blur(12px);transition:border-color .3s,transform .3s var(--ease),box-shadow .3s}
+.card:hover{border-color:var(--line-strong);box-shadow:0 16px 40px rgba(0,0,0,.25)}
+.card-2{background:var(--card-2)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap)}
+.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--gap)}
+.grid4.cols4{grid-template-columns:repeat(4,1fr)}
+.kcard .keys.tight{margin-top:10px;padding-top:0;border:0}
+.kcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 18px;transition:.35s var(--ease);backdrop-filter:blur(10px);position:relative;overflow:hidden}
+.kcard::after{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);opacity:0;transition:.35s}
+.kcard:hover{border-color:rgba(52,224,161,.32);box-shadow:0 12px 32px rgba(0,0,0,.22)}
+.kcard:hover::after{opacity:1}
+.k-i{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:1.3px;color:var(--g);margin-bottom:10px;text-transform:uppercase}
+
+section[data-spk="问题"] .kick,section[data-spk="问题"] .eyebrow{color:var(--b)}
+section[data-spk="路径"] .kick,section[data-spk="路径"] .eyebrow,
+section[data-spk="平台"] .kick,section[data-spk="平台"] .eyebrow,
+section[data-spk="方法"] .kick,section[data-spk="方法"] .eyebrow,
+section[data-spk="开场"] .kick{color:var(--g)}
+.kcard h4{margin-bottom:8px}
+.kcard p{font-size:13px;color:var(--tx-2);line-height:1.7}
+.kcard .help{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(245,177,76,.28);font-size:12.5px;color:var(--a);line-height:1.65}
+.kcard .help::before{content:"对我们 · ";font-family:var(--mono);font-size:10px;letter-spacing:.8px;font-weight:700}
+.kcard.al-hot{cursor:pointer}
+.kcard.al-hot:hover{border-color:rgba(91,155,255,.5);box-shadow:0 18px 40px rgba(91,155,255,.12)}
+.kcard .al-link{color:var(--b);font-weight:650;border-bottom:1px dashed rgba(91,155,255,.55)}
+.al-link{color:var(--g);font-weight:650;border-bottom:1.5px solid rgba(52,224,161,.75);cursor:pointer;transition:border-color .2s,color .2s}
+.al-link:hover{color:#7BECC0;border-bottom-color:#7BECC0}
+.kcard .al-hint{margin-top:12px;font-family:var(--mono);font-size:10.5px;letter-spacing:.8px;color:var(--b);opacity:.85}
+.kcard .keys{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:12px;border-top:1px dashed rgba(91,155,255,.22)}
+.kcard .keys span{font-size:12px;line-height:1.4;color:var(--b);background:rgba(91,155,255,.1);border:1px solid rgba(91,155,255,.28);padding:4px 8px;border-radius:8px}
+
+/* 第五能力：与全局 kcard 同一套 */
+.caps{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-top:28px;align-items:stretch;
+}
+.caps .kcard{
+  grid-column:span 2;display:flex;flex-direction:column;padding:20px 18px 16px;min-height:0;
+}
+.caps .kcard:nth-child(n+4){grid-column:span 3}
+.caps .k-i{color:var(--b)}
+.caps .kcard p{flex:1}
+.caps .kcard .keys{margin-top:16px}
+.caps .kcard .al-hint{margin-top:10px}
+.flist{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px}
+.fi{display:grid;grid-template-columns:32px 1fr;gap:2px 12px;align-items:baseline;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--card)}
+.fi .fn{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--g);line-height:1.45}
+.fi .ff{font-family:var(--mono);font-size:13px;color:var(--tx);word-break:break-all;line-height:1.45}
+.fi .fd{font-size:12.5px;color:var(--tx-2);line-height:1.5;grid-column:2}
+
+/* Auto Layout ↔ Flexbox 弹窗 */
+.flex-modal{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;padding:72px 28px 40px}
+.flex-modal.on{display:flex}
+.flex-modal .dim{position:absolute;inset:0;background:rgba(5,7,12,.78);backdrop-filter:blur(14px)}
+.flex-modal .box{position:relative;z-index:1;width:min(880px,94vw);max-height:min(84vh,760px);overflow:auto;background:linear-gradient(180deg,#10151F,#0C1118);border:1px solid var(--line-strong);border-radius:20px;padding:28px 30px 26px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.flex-modal .mh{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:8px}
+.flex-modal .mh h3{font-size:22px;font-weight:700;letter-spacing:-.4px;line-height:1.3}
+.flex-modal .mh h3 span{color:var(--b)}
+.flex-modal .x{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--tx-2);font-size:18px;cursor:pointer;flex-shrink:0}
+.flex-modal .x:hover{color:#fff;border-color:var(--b)}
+.flex-modal .lead{font-size:14.5px;color:var(--tx-2);line-height:1.75;max-width:720px;margin:8px 0 22px}
+.flex-modal .cols{display:grid;grid-template-columns:1fr 36px 1fr;gap:0 8px;margin-bottom:8px;padding:0 12px}
+.flex-modal .cols span{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;color:var(--tx-3);text-transform:uppercase}
+.flex-modal .cols span.b{color:var(--b)}
+.flex-modal .cols span.g{color:var(--g)}
+.al-map{display:flex;flex-direction:column;gap:8px}
+.al-row{display:grid;grid-template-columns:1fr 36px 1fr;align-items:center;background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.al-row .k{font-family:var(--mono);font-size:11px;color:var(--tx-3);margin-bottom:3px;letter-spacing:.3px}
+.al-row .v{font-size:14px;font-weight:650;color:var(--tx)}
+.al-row .arr{text-align:center;color:var(--b);font-family:var(--mono);font-size:16px}
+.flex-modal .foot{margin-top:18px;padding:14px 16px;border-radius:12px;background:rgba(91,155,255,.08);border:1px solid rgba(91,155,255,.25);font-size:13.5px;line-height:1.7;color:var(--tx)}
+.flex-modal .foot b{color:#fff}
+
+/* 通用讲解弹窗内容 */
+.cap-h{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;color:var(--b);text-transform:uppercase;margin:20px 0 10px}
+.cap-h:first-child{margin-top:4px}
+.cap-list{display:flex;flex-direction:column;gap:8px}
+.cap-item{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.cap-item .k{font-size:14px;font-weight:650;color:var(--tx);margin-bottom:4px}
+.cap-item .k b{color:var(--b);font-family:var(--mono);font-size:12px;margin-right:8px;letter-spacing:.3px}
+.cap-item .v{font-size:13px;color:var(--tx-2);line-height:1.75}
+.cap-item .v em{color:var(--tx);font-style:normal;font-weight:600}
+.cap-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 2px}
+.cap-flow .fn{padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:13px;font-weight:650;color:var(--tx)}
+.cap-flow .fn b{color:var(--b);font-family:var(--mono);font-size:11px;margin-right:6px}
+.cap-flow .fa{color:var(--tx-3);font-family:var(--mono);font-size:13px}
+
+/* 图片放大 Lightbox */
+.lightbox{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;padding:64px 5vw 70px}
+.lightbox.on{display:flex}
+.lightbox .dim{position:absolute;inset:0;background:rgba(5,7,12,.9);backdrop-filter:blur(16px)}
+.lightbox img{position:relative;z-index:1;max-width:92vw;max-height:80vh;object-fit:contain;border-radius:14px;border:1px solid var(--line-strong);box-shadow:0 40px 100px rgba(0,0,0,.6);cursor:zoom-out}
+.lightbox .lb-cap{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:1;font-size:13px;color:var(--tx-2);background:rgba(10,14,20,.88);border:1px solid var(--line);padding:8px 18px;border-radius:999px;max-width:84vw;text-align:center;line-height:1.5}
+.lightbox .x{position:absolute;top:70px;right:5vw;z-index:2;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--tx-2);font-size:18px;cursor:pointer}
+.lightbox .x:hover{color:#fff;border-color:var(--b)}
+.lightbox,.lightbox *{cursor:auto}
+body.has-cursor .lightbox{cursor:auto}
+body.has-cursor .lightbox img{cursor:zoom-out}
+.figure{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line-strong);background:var(--card);box-shadow:0 20px 50px rgba(0,0,0,.3);transition:transform .45s var(--ease),box-shadow .45s;max-height:min(48vh,420px);cursor:zoom-in}
+.figure::after{content:"⤢ 点击放大";position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:10.5px;letter-spacing:.8px;color:var(--tx);background:rgba(8,10,14,.78);border:1px solid var(--line);padding:5px 10px;border-radius:999px;opacity:0;transition:.3s;backdrop-filter:blur(8px);pointer-events:none}
+.figure:hover::after{opacity:1}
+.figure:hover{transform:translateY(-2px);box-shadow:0 28px 60px rgba(0,0,0,.38)}
+.figure img{width:100%;height:100%;max-height:min(42vh,380px);object-fit:cover;object-position:top center;display:block}
+.figure.full{max-height:min(72vh,680px)}
+.figure.full img{max-height:min(64vh,580px);object-fit:contain;object-position:center;background:#070a10}
+.figure .cap{padding:14px 18px;font-size:12.5px;color:var(--tx-2);background:rgba(8,10,14,.78);border-top:1px solid var(--line);backdrop-filter:blur(8px);line-height:1.55}
+.code{background:var(--code);border:1px solid var(--line);border-radius:14px;font-family:var(--mono);font-size:12.5px;line-height:1.8;padding:22px 24px;overflow:auto;color:#C9D3E0;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.two-w>.code{align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.code .c{color:#5C6675}.code .k{color:var(--v)}.code .s{color:var(--g)}.code .p{color:#7FB3FF}
+.quote{border-left:3px solid var(--g);padding:6px 0 6px 20px;margin-top:24px;font-size:clamp(14.5px,1.35vw,17px);line-height:1.75;color:var(--tx);max-width:800px;font-weight:500}
+.quote .who{display:block;font-size:12px;color:var(--tx-3);margin-top:8px;font-weight:400;font-family:var(--mono);letter-spacing:.3px}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.badge{font-size:11px;padding:4px 11px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--tx-2);font-family:var(--mono);letter-spacing:.2px}
+.badge.g{border-color:rgba(52,224,161,.35);color:var(--g);background:rgba(52,224,161,.08)}
+.bigquote{font-size:clamp(20px,2.5vw,30px);line-height:1.55;font-weight:650;letter-spacing:-.4px;max-width:900px}
+.bigquote .q{color:var(--tx-3)}
+.bigquote .hl{background:linear-gradient(transparent 62%,rgba(52,224,161,.32) 62%);padding:0 2px}
+.glow{position:absolute;border-radius:50%;filter:blur(120px);opacity:.55;pointer-events:none;z-index:0;animation:floatGlow 10s ease-in-out infinite}
+@keyframes floatGlow{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(12px,-18px) scale(1.06)}}
+
+/* 大术语卡 */
+.term{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px 20px;transition:.35s var(--ease);backdrop-filter:blur(10px);min-height:0}
+.term:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(0,0,0,.28)}
+.term .abbr{font-family:var(--mono);font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+.term .full{font-size:11px;color:var(--tx-3);font-family:var(--mono);margin-bottom:10px;letter-spacing:.6px;text-transform:uppercase}
+.term p{font-size:13.5px;color:var(--tx-2);line-height:1.65}
+.term.g{border-color:rgba(52,224,161,.35)}.term.g .abbr{color:var(--g)}
+.term.b{border-color:rgba(91,155,255,.35)}.term.b .abbr{color:var(--b)}
+.term.v{border-color:rgba(167,139,250,.4)}.term.v .abbr{color:var(--v)}
+
+/* 公式 */
+.formula{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;margin:34px 0}
+.formula .f{background:var(--card-2);border:1.5px solid var(--line-strong);border-radius:14px;padding:20px 26px;text-align:center;min-width:150px}
+.formula .f .ch{font-family:var(--mono);font-size:30px;font-weight:700;display:block;line-height:1}
+.formula .f .en{font-size:11px;color:var(--tx-3);font-family:var(--mono);margin-top:8px;display:block;letter-spacing:.5px}
+.formula .f .cn{font-size:14px;color:var(--tx-2);margin-top:4px;display:block;font-weight:600}
+.formula .to{font-size:30px;color:var(--g);font-weight:700;padding:0 18px;font-family:var(--mono)}
+.formula .to small{display:block;font-size:10px;color:var(--tx-3);font-weight:400;text-align:center;margin-top:2px}
+
+/* 时间线 */
+.tl3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:28px;position:relative}
+.tl3 .tp{padding:22px 20px;position:relative;transition:.3s;background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:14px}
+.tl3 .tp:hover{background:rgba(255,255,255,.035);border-color:var(--line-strong)}
+.tl3 .yr{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--b);margin-bottom:10px;letter-spacing:.5px;position:relative}
+.tl3 .yr::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:8px;box-shadow:0 0 0 4px rgba(91,155,255,.15)}
+.tl3 .tp:nth-child(2) .yr{color:var(--g)}
+.tl3 .tp:nth-child(2) .yr::before{box-shadow:0 0 0 4px rgba(52,224,161,.15)}
+.tl3 .tp:nth-child(3) .yr{color:var(--v)}
+.tl3 .tp:nth-child(3) .yr::before{box-shadow:0 0 0 4px rgba(167,139,250,.18)}
+.tl3 .nm{font-size:16px;font-weight:650;margin-bottom:8px;line-height:1.35;letter-spacing:-.2px}
+.tl3 .ds{font-size:13px;color:var(--tx-2);line-height:1.65}
+
+/* 对比 */
+.vs{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:stretch;margin-top:24px}
+.vs .col{padding:22px 24px;border-radius:var(--radius);transition:.35s var(--ease)}
+.vs .old{background:var(--card);border:1px solid var(--line)}
+.vs .new{background:linear-gradient(160deg,rgba(52,224,161,.12),rgba(91,155,255,.07));border:1px solid rgba(52,224,161,.4);box-shadow:0 0 0 1px rgba(52,224,161,.05),0 20px 50px rgba(52,224,161,.08)}
+.vs .mid{display:grid;place-items:center;padding:0 18px}
+.vs .mid .arr{font-size:24px;color:var(--g);font-weight:700;animation:nudge 1.8s ease-in-out infinite}
+@keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+.vs h5{font-size:11.5px;letter-spacing:1.5px;font-weight:700;color:var(--tx-3);text-transform:uppercase;margin-bottom:14px;font-family:var(--mono)}
+.vs .new h5{color:var(--g)}
+.vs .row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.07);font-size:13.5px}
+.vs .row:last-child{border:0}
+.vs .row .t{color:var(--tx-2)}
+.vs .row .v{font-family:var(--mono);font-weight:650}
+.vs .old .row .v{color:var(--tx-2)}
+.vs .new .row .v{color:var(--g)}
+.vs .total{margin-top:12px;padding-top:12px;border-top:1px solid var(--line-strong);display:flex;justify-content:space-between;align-items:baseline}
+.vs .total .lab{font-size:13px;font-weight:700}
+.vs .total .num{font-family:var(--mono);font-size:22px;font-weight:700}
+.vs .old .total .num{color:var(--tx-2)}
+.vs .new .total .num{color:var(--g)}
+
+/* 流程链 */
+.flow{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin-top:26px}
+.flow .node{background:var(--card-2);border:1px solid var(--line-strong);border-radius:10px;padding:11px 16px;font-size:13px;font-weight:600;white-space:nowrap;transition:.25s}
+.flow .node.hl{border-color:var(--g);color:var(--g);background:rgba(52,224,161,.08)}
+.flow .node.v{border-color:var(--v);color:var(--v);background:rgba(167,139,250,.08)}
+.flow .arr{color:var(--tx-3);padding:0 10px;font-size:17px}
+.flow-cap{font-size:12px;color:var(--tx-3);margin-top:12px;font-family:var(--mono)}
+
+/* 步骤 */
+.steps{display:flex;flex-direction:column;gap:4px;margin-top:28px}
+.stepi{display:grid;grid-template-columns:52px 1fr;gap:22px;padding:22px 8px;border-bottom:1px solid rgba(255,255,255,.05);position:relative;transition:.3s}
+.stepi:hover{padding-left:12px}
+.stepi:last-child{border:0}
+.stepi .n{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-family:var(--mono);font-size:15px;font-weight:700;background:var(--card-2);border:1px solid var(--line-strong);color:var(--b);transition:.3s}
+.stepi:hover .n{transform:scale(1.06)}
+.stepi .n.g{color:var(--g);border-color:rgba(52,224,161,.4);background:rgba(52,224,161,.07)}
+.stepi .n.v{color:var(--v);border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.07)}
+.stepi h4{font-size:16.5px;font-weight:650;margin-bottom:4px;letter-spacing:-.2px}
+.stepi h4 .tag{font-family:var(--mono);font-size:11px;color:var(--tx-3);font-weight:400;margin-left:10px;letter-spacing:.4px}
+.stepi p{font-size:14px;color:var(--tx-2);line-height:1.8;max-width:760px}
+.steps.compact .stepi{padding:12px 8px;gap:16px}
+.steps.compact .stepi .n{width:36px;height:36px;font-size:13px;border-radius:10px}
+.steps.compact .stepi h4{font-size:15px}
+.steps.compact .stepi p{font-size:13px;line-height:1.65}
+.stepi .n.a{color:var(--a);border-color:rgba(245,177,76,.4);background:rgba(245,177,76,.07)}
+.steps.switch .stepi{cursor:pointer;border-radius:12px}
+.steps.switch .stepi.on{background:rgba(167,139,250,.08);border-color:transparent}
+.use-pane .figure{max-height:min(46vh,400px)}
+.use-pane .figure img{max-height:min(38vh,330px);object-fit:contain;object-position:top center;background:#070a10}
+.thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px}
+.thumbs button{padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.03);cursor:pointer;opacity:.5;transition:.2s}
+.thumbs button.on{opacity:1;border-color:rgba(167,139,250,.7);box-shadow:0 0 0 1px rgba(167,139,250,.25)}
+.thumbs button img{width:100%;height:40px;object-fit:cover;object-position:top center;display:block}
+.thumbs button span{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.3px;color:var(--tx-3);padding:4px 2px 5px;text-align:center}
+.thumbs button.on span{color:var(--v)}
+.two-col-steps{display:grid;grid-template-columns:1fr 1fr;gap:12px 40px;margin-top:24px}
+.two-col-steps .stepi{padding:14px 4px}
+
+/* 类比卡 */
+.analogy{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:28px}
+.ana{border-radius:16px;padding:24px;transition:.35s var(--ease)}
+.ana:hover{transform:translateY(-2px)}
+.ana.bad{background:var(--card);border:1px solid var(--line)}
+.ana.good{background:linear-gradient(150deg,rgba(52,224,161,.12),transparent);border:1px solid rgba(52,224,161,.35)}
+.ana .lab{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:12px;text-transform:uppercase}
+.ana.bad .lab{color:var(--tx-3)}
+.ana.good .lab{color:var(--g)}
+.ana h4{font-size:16px;font-weight:650;margin-bottom:10px}
+.ana p{font-size:13.5px;color:var(--tx-2);line-height:1.8}
+
+/* 表格 */
+table.tt{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;margin-top:22px;overflow:hidden;border-radius:14px;border:1px solid var(--line)}
+table.tt th,table.tt td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+table.tt tr:last-child td{border-bottom:0}
+table.tt thead th{font-size:11.5px;letter-spacing:1.2px;color:var(--tx-3);font-weight:700;text-transform:uppercase;background:rgba(255,255,255,.03);font-family:var(--mono)}
+table.tt tbody td{color:var(--tx-2);line-height:1.75;background:rgba(255,255,255,.01)}
+table.tt tbody td:first-child{color:var(--tx);font-weight:600}
+table.tt tbody tr{transition:background .2s}
+table.tt tbody tr:hover td{background:rgba(52,224,161,.04)}
+table.tt .hl{color:var(--g);font-weight:650}
+
+/* Harness 五层 */
+.harness{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.hlayer{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 16px;transition:.3s var(--ease)}
+.hlayer:hover{transform:translateX(6px);border-color:var(--line-strong)}
+.hlayer .hn{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--b);width:36px;flex-shrink:0}
+.hlayer .ht{font-size:13.5px;font-weight:650;flex-shrink:0;min-width:88px}
+.hlayer .hd{font-size:12px;color:var(--tx-3);margin-left:auto;text-align:right;line-height:1.5}
+.hlayer.top{border-color:rgba(52,224,161,.4);background:rgba(52,224,161,.06)}
+.hlayer.top .hn,.hlayer.top .ht{color:var(--g)}
+.rlayers{display:flex;flex-direction:column;gap:8px;margin-top:22px}
+.rrow{display:grid;grid-template-columns:40px 1fr auto;gap:14px;align-items:center;padding:14px 16px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);position:relative;overflow:hidden}
+.rrow .lv{
+  display:flex;align-items:center;justify-content:center;align-self:center;
+  width:40px;height:40px;line-height:1;letter-spacing:0;
+  font-family:var(--mono);font-size:13px;font-weight:700;color:var(--g);
+}
+.rrow h4{margin-bottom:4px}
+.rrow p{font-size:12.5px;color:var(--tx-2);line-height:1.55;margin:0}
+.rrow .tag{font-family:var(--mono);font-size:11px;letter-spacing:.4px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--tx-3);white-space:nowrap}
+.rrow .tag.hot{color:var(--g);border-color:rgba(52,224,161,.35);background:rgba(52,224,161,.08)}
+.rrow .tag.mid{color:var(--b);border-color:rgba(91,155,255,.35);background:rgba(91,155,255,.08)}
+.rrow .bar{position:absolute;left:0;bottom:0;height:2px;background:rgba(52,224,161,.7)}
+.keys-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px}
+.keys-grid .rrow{grid-column:span 2;padding:12px 14px;gap:10px}
+.keys-grid .rrow:nth-child(n+4){grid-column:span 3;align-items:start}
+.keys-grid .rrow h4{margin-bottom:2px;font-size:14px}
+.keys-grid .rrow p{font-size:12.5px;line-height:1.45}
+.keys-grid .rrow.al-hot{cursor:pointer;transition:border-color .2s,box-shadow .2s,background .2s}
+.keys-grid .rrow.al-hot:hover{border-color:rgba(91,155,255,.5);box-shadow:0 12px 28px rgba(91,155,255,.1);background:rgba(91,155,255,.05)}
+.keys-grid .rrow .dots{margin:8px 0 0;padding:0 0 0 16px}
+.keys-grid .rrow .dots li{font-size:12px;color:var(--tx-2);line-height:1.55;margin:0 0 4px}
+.keys-grid .rrow .dots li:last-child{margin-bottom:0}
+.keys-grid .rrow .al-hint{margin-top:8px;font-family:var(--mono);font-size:10px;letter-spacing:.7px;color:var(--b);opacity:.9}
+
+#lyj-routes .t{max-width:none}
+#lyj-routes .sub{max-width:800px}
+.route-pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px;align-items:stretch}
+.route-pair .kcard{display:flex;flex-direction:column;padding:20px 20px 18px}
+.route-pair .kcard h4{font-size:15px;font-weight:500;color:var(--tx-2);line-height:1.6;margin:0 0 18px}
+.route-pair .kcard .al-hint{margin-top:14px}
+.rflow{display:flex;align-items:stretch;gap:6px;margin-top:auto}
+.rflow .rf{
+  flex:1;min-width:0;padding:10px 11px 12px;border:1px solid var(--line);border-radius:12px;
+  background:rgba(255,255,255,.03);
+}
+.rflow .rf .n{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--g);margin-bottom:6px}
+.rflow .rf h4{font-size:12.5px;font-weight:650;line-height:1.4;margin:0;color:var(--tx)}
+.rflow .ra{flex:none;color:var(--tx-3);font-family:var(--mono);font-size:12px;align-self:center}
+
+h3.sec{
+  font-size:clamp(16px,1.5vw,20px);font-weight:650;letter-spacing:-.025em;
+  margin:28px 0 10px;line-height:1.35;max-width:860px;color:var(--tx);
+}
+section[data-spk="问题"] .kcard:hover{border-color:rgba(91,155,255,.4)}
+.kcard h4,.grule h4,.fatal h4,.pre-card h4,.rrow h4{
+  font-size:15px;font-weight:650;line-height:1.4;letter-spacing:-.2px;color:var(--tx);
+}
+.kcard h4{margin-bottom:8px}
+.fatal .k-i{margin-bottom:6px}
+
+.pre-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:22px;align-items:stretch}
+.pre-list{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:4px 0}
+.pre-item{display:grid;grid-template-columns:140px 1fr;gap:8px 14px;align-items:baseline;padding:10px 18px}
+.pre-item + .pre-item{border-top:1px solid var(--line)}
+.pre-item h4{font-size:13.5px;font-weight:650;color:var(--tx);margin:0;letter-spacing:-.1px}
+.pre-item p{font-size:12.5px;color:var(--tx-2);line-height:1.55;margin:0}
+.pre-side{display:flex;flex-direction:column;gap:14px}
+.pre-card{flex:1;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:18px}
+.pre-card .k-i{margin-bottom:10px}
+.pre-card h4{margin-bottom:10px}
+.pre-card p{font-size:13px;color:var(--tx-2);line-height:1.7}
+.pre-card.hot{border-color:rgba(52,224,161,.35);background:rgba(52,224,161,.06)}
+.core-box{margin-top:16px;padding:14px 16px;border-radius:14px;border:1px solid rgba(52,224,161,.3);background:rgba(52,224,161,.07);display:flex;flex-direction:column;align-items:flex-start;gap:8px;font-size:14.5px;line-height:1.65}
+.core-box .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--g);border:1px solid rgba(52,224,161,.35);padding:3px 8px;border-radius:999px;flex-shrink:0;margin:0;text-transform:uppercase}
+.core-box p{margin:0;min-width:0}
+.goal-top{display:grid;grid-template-columns:1.15fr .85fr;gap:12px;margin-top:18px;align-items:stretch}
+.goal-top .core-box{margin-top:0}
+.goal-top .quote.a{
+  margin:0;max-width:none;font-size:14px;line-height:1.7;font-weight:500;
+  padding:14px 16px;border-radius:14px;
+  background:var(--card);border:1px solid var(--line);border-left:3px solid var(--g);
+}
+.pmap{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;align-items:stretch}
+.prow{
+  display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;height:100%;
+  padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);
+  text-align:left;gap:8px;
+}
+.prow .prob{width:100%;font-size:13px;color:var(--tx-2);line-height:1.55;margin:0;text-align:left}
+.prow .arr{display:none}
+.prow .layer{width:100%;padding-top:8px;border-top:1px solid var(--line);text-align:left}
+.prow .layer b{display:block;font-size:14.5px;font-weight:650;color:var(--g);margin:0 0 2px;letter-spacing:-.2px;line-height:1.4}
+.prow .layer span{display:block;font-size:12.5px;color:var(--tx-3);line-height:1.45}
+.quote.a{margin-top:20px;max-width:none;font-size:15px}
+
+.keyflow{display:flex;align-items:center;gap:0;margin-top:36px}
+.keyflow .kk{flex:1;min-width:0;text-align:center;padding:18px 10px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.keyflow .kk .n{font-family:var(--mono);font-size:11px;color:var(--g);letter-spacing:.08em;margin-bottom:8px}
+.keyflow .kk h4{font-size:13.5px;font-weight:650;line-height:1.4}
+.keyflow .ka{color:var(--tx-3);padding:0 8px;font-size:15px;flex-shrink:0;font-family:var(--mono)}
+.rrow .lv{color:var(--g)}
+.rrow .lv.num{font-size:12px;color:var(--g)}
+.rrow .tag.hot{color:var(--g);border-color:rgba(52,224,161,.35);background:rgba(52,224,161,.08)}
+.rrow .bar{background:rgba(52,224,161,.7)}
+
+.ana ul{margin:4px 0 0;padding:0;list-style:none}
+.ana li{font-size:13.5px;color:var(--tx-2);line-height:1.65;padding:3px 0}
+.ana .foot{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:13.5px;font-weight:650}
+.ana.good .foot{color:var(--g)}
+.ana.bad .foot{color:#F28B8B}
+.sol{margin-top:12px;padding:8px 12px;border-radius:10px;background:rgba(52,224,161,.08);border:1px solid rgba(52,224,161,.28);font-size:13px;color:var(--g);font-weight:650}
+.fsteps{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.fstep{padding:12px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.fstep .hd{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+.fstep .sn{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--g);letter-spacing:.04em}
+.fstep h4{font-size:13.5px;font-weight:650;margin:0}
+.fstep h4 i{font-style:normal;font-size:11px;color:var(--tx-3);font-weight:500;margin-left:8px;font-family:var(--mono)}
+.fstep p{font-size:12.5px;color:var(--tx-2);line-height:1.55;margin:0}
+.fstep.on{border-color:rgba(52,224,161,.4);background:rgba(52,224,161,.06)}
+.keyflow.tight .kk{padding:14px 8px 12px}
+.keyflow.tight .kk h4{font-size:12.5px;line-height:1.45}
+
+.flds{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.fld{display:grid;grid-template-columns:158px 1fr;gap:10px 14px;align-items:start;padding:10px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.fld code{font-family:var(--mono);font-size:12px;color:var(--b);padding-top:3px;word-break:break-all}
+.fld h4{font-size:13.5px;font-weight:650;margin:0 0 2px}
+.fld p{font-size:12.5px;color:var(--tx-2);line-height:1.5;margin:0}
+.shot{margin-top:14px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.shot .k-i{margin-bottom:8px}
+.shot ol{margin:0;padding-left:18px}
+.shot li{font-size:13px;color:var(--tx-2);line-height:1.65;padding:2px 0}
+
+.grules{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+.grule{padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.grule h4{margin:0 0 6px}
+.grule h4 i{font-style:normal;font-size:11px;color:var(--tx-3);font-weight:500;margin-left:8px;font-family:var(--mono);letter-spacing:.02em}
+.grule>p{font-size:13px;color:var(--tx-2);line-height:1.55;margin:0 0 8px}
+.grule .ex{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12.5px;line-height:1.55}
+.grule .ok{color:var(--g)}
+.grule .ng{color:#F28B8B}
+
+.fatals{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.fatal{padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.fatal h4{margin:0 0 8px}
+.fatal .bad,.fatal .fix{font-size:13px;line-height:1.6;margin:0 0 5px}
+.fatal .bad{color:#F28B8B}
+.fatal .fix{color:var(--g)}
+.fatal .bad b,.fatal .fix b{font-weight:650;margin-right:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+.fatal .tip{margin:10px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--tx-2);line-height:1.55}
+.logic{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.logic .litem{display:flex;gap:16px;align-items:flex-start;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.logic .litem .n{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--g);line-height:1.2;flex-shrink:0;width:24px}
+.logic .litem p{font-size:15px;line-height:1.7;color:var(--tx);margin:0}
+.fi .fn{color:var(--g)}
+
+/* 大数字 */
+.bignum{display:flex;align-items:baseline;gap:16px;margin-top:22px}
+.bignum .v{font-family:var(--mono);font-size:clamp(40px,5vw,68px);font-weight:700;letter-spacing:-3px;color:var(--g);line-height:1;text-shadow:0 0 40px rgba(52,224,161,.25)}
+.bignum .t{font-size:13.5px;color:var(--tx-2);line-height:1.55;max-width:280px}
+
+/* 封面 */
+.cover{justify-content:flex-start}
+.cover .slide-in{max-width:1100px}
+.cover .hero{max-width:100%}
+.cover .badge-top{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:100px;border:1px solid rgba(52,224,161,.4);background:rgba(52,224,161,.08);color:var(--g);font-size:12px;font-weight:600;margin-bottom:36px;letter-spacing:.4px;backdrop-filter:blur(8px)}
+.cover h1{font-size:clamp(30px,3.6vw,46px);line-height:1.22;font-weight:700;letter-spacing:-.035em;max-width:100%;white-space:nowrap}
+.cover .subh{font-size:clamp(16px,1.7vw,22px);font-weight:500;color:var(--tx-2);margin-top:18px;letter-spacing:-.01em;line-height:1.55;white-space:normal;max-width:920px}
+.cover .subh em{font-style:normal;font-weight:650;background:linear-gradient(100deg,var(--g),#7BECC0 40%,var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+.cover .story{margin-top:48px;padding-top:32px;border-top:1px solid var(--line);max-width:100%}
+.cover .lead{font-size:15px;color:var(--tx-3);margin-top:0;max-width:none;line-height:1.6;white-space:normal;letter-spacing:.02em}
+.cover .pipe{margin-top:22px;flex-wrap:nowrap}
+.cover .pipe .pn{padding:12px 20px;font-size:14px}
+.cover .pipe .pa{padding:0 14px;font-size:16px;color:var(--g)}
+.cover .meta{display:flex;gap:0;flex-wrap:nowrap;margin-top:56px;padding-top:0;border-top:0;font-size:13px;color:var(--tx-3)}
+.cover .meta span{display:flex;align-items:center;padding-right:32px;margin-right:32px;border-right:1px solid var(--line);white-space:nowrap}
+.cover .meta span:last-child{border:0;padding-right:0;margin-right:0}
+.cover .meta span b{color:var(--tx-2);font-weight:500;margin-right:8px}
+
+/* 收束页 */
+.close{text-align:center;max-width:720px;margin:0 auto}
+.close .eyebrow,.close .kick{justify-content:center;margin-bottom:14px}
+.close h2{font-size:clamp(36px,5vw,56px);font-weight:650;letter-spacing:-.04em;line-height:1.2;margin:0}
+.close .lede{margin:16px auto 0;text-align:center;max-width:480px}
+.close .foot{
+  margin-top:32px;padding-top:16px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--tx-3);line-height:1.7;letter-spacing:.04em;
+}
+#s-thanks{justify-content:center;padding-top:64px;padding-bottom:80px}
+#s-thanks .slide-in{margin:0 auto}
+
+/* 议程 */
+.agenda{display:flex;flex-direction:column;gap:8px;margin-top:28px;max-width:860px}
+.agi{display:grid;grid-template-columns:56px 1fr;gap:18px;align-items:center;padding:18px 20px;border-radius:14px;border:1px solid transparent;transition:.3s var(--ease);background:rgba(255,255,255,.015)}
+.agi:hover{background:var(--card);border-color:var(--line);transform:translateX(6px)}
+.agi.sy .n{color:var(--b)}
+.agi.fm .n{color:var(--g)}
+.agi.lyj .n{color:var(--v)}
+.agi.us .n{color:var(--a)}
+.agi .n{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--tx-3)}
+.agi .tt{font-size:17px;font-weight:650;letter-spacing:-.2px}
+.agi .tt span{display:block;font-size:12.5px;color:var(--tx-3);font-weight:400;margin-top:3px;line-height:1.5}
+.agi .tm{font-family:var(--mono);font-size:11.5px;color:var(--tx-3)}
+
+/* ============ 图形化模块 ============ */
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.chip{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);min-width:0;flex:1}
+.chip .cn{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--g);letter-spacing:.8px}
+.chip .ct{font-size:13.5px;font-weight:600;color:var(--tx)}
+.chip .cd{font-size:12px;color:var(--tx-3);margin-top:2px}
+
+.pipe{display:flex;align-items:center;gap:0;margin-top:28px;flex-wrap:wrap}
+.pipe .pn{padding:10px 16px;border-radius:10px;border:1px solid var(--line-strong);background:var(--card-2);font-size:13px;font-weight:650;white-space:nowrap}
+.pipe .pn.g{border-color:rgba(52,224,161,.4);color:var(--g);background:rgba(52,224,161,.08)}
+.pipe .pa{color:var(--tx-3);padding:0 10px;font-family:var(--mono);font-size:14px}
+
+.tri{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px;max-width:860px}
+.tri .ti{padding:16px 18px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.025)}
+.tri .ti .n{font-family:var(--mono);font-size:11px;color:var(--g);letter-spacing:1.2px;margin-bottom:6px}
+.tri .ti h4{font-size:15px;font-weight:650;margin-bottom:0}
+
+.pair{display:grid;grid-template-columns:1fr 48px 1fr;gap:0;align-items:stretch;margin-top:32px;max-width:920px}
+.pair .pc{padding:28px 26px;border-radius:16px;border:1px solid var(--line);background:var(--card)}
+.pair .pc .lab{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;color:var(--tx-3);margin-bottom:12px;text-transform:uppercase}
+.pair .pc h3{font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:10px;line-height:1.35}
+.pair .pc p{font-size:14px;color:var(--tx-2);line-height:1.7}
+.pair .pc.did .lab{color:var(--b)}
+.pair .pc.did h3{color:var(--tx)}
+.pair .pc.not{border-color:rgba(245,177,76,.35);background:linear-gradient(160deg,rgba(245,177,76,.1),transparent)}
+.pair .pc.not .lab{color:var(--a)}
+.pair .pc.not h3{color:var(--a)}
+.pair .pm{display:grid;place-items:center;font-family:var(--mono);font-size:12px;color:var(--tx-3);letter-spacing:.5px}
+
+/* 第四页：左右对比 */
+.analogy{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin-top:32px;max-width:920px}
+.ana{padding:28px 26px;border-radius:16px;border:1px solid var(--line);background:var(--card)}
+.ana .lab{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;color:var(--tx-3);margin-bottom:12px;text-transform:uppercase}
+.ana h4{font-size:20px;font-weight:700;letter-spacing:-.3px;margin-bottom:10px;line-height:1.35}
+.ana p{font-size:14px;color:var(--tx-2);line-height:1.7}
+.ana.bad{border-color:rgba(242,139,139,.3);background:linear-gradient(160deg,rgba(242,109,109,.08),transparent)}
+.ana.bad .lab{color:#F28B8B}
+.ana.bad h4{color:#F28B8B}
+.ana.good{border-color:rgba(52,224,161,.35);background:linear-gradient(160deg,rgba(52,224,161,.1),transparent)}
+.ana.good .lab{color:var(--g)}
+.ana.good h4{color:var(--g)}
+
+/* 第五页：从 → 到 */
+.shift{display:flex;align-items:stretch;gap:18px;margin-top:32px;max-width:920px}
+.sh{flex:1;padding:26px 24px;border-radius:16px;border:1px solid var(--line);background:var(--card)}
+.sh .lab{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;color:var(--tx-3);margin-bottom:12px;text-transform:uppercase}
+.sh h4{font-size:20px;font-weight:700;letter-spacing:-.3px;margin-bottom:10px;line-height:1.35}
+.sh p{font-size:14px;color:var(--tx-2);line-height:1.7}
+.sh.from{border-color:rgba(245,177,76,.3);background:linear-gradient(160deg,rgba(245,177,76,.08),transparent)}
+.sh.from .lab{color:var(--a)}
+.sh.from h4{color:var(--a)}
+.sh.to{border-color:rgba(52,224,161,.35);background:linear-gradient(160deg,rgba(52,224,161,.1),transparent)}
+.sh.to .lab{color:var(--g)}
+.sh.to h4{color:var(--g)}
+.sh-arrow{display:grid;place-items:center;font-size:24px;color:var(--tx-3);flex-shrink:0}
+.break .bx{flex:1;padding:16px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);text-align:center}
+.break .bx .k{font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:var(--tx-3);margin-bottom:6px;text-transform:uppercase}
+.break .bx .v{font-size:14px;font-weight:650}
+.break .bx.bad{border-color:rgba(242,109,109,.35);background:rgba(242,109,109,.08)}
+.break .bx.bad .k,.break .bx.bad .v{color:#F28B8B}
+.break .arr{display:grid;place-items:center;color:var(--tx-3);font-family:var(--mono);padding:0 2px}
+
+.pills{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.pill{padding:8px 14px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;color:var(--tx-2);background:rgba(255,255,255,.03)}
+.pill.on{border-color:rgba(52,224,161,.4);color:var(--g);background:rgba(52,224,161,.08)}
+
+.swap{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.swap .sr{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:1px solid var(--line)}
+.swap .sr.off{background:rgba(255,255,255,.02)}
+.swap .sr.on{background:rgba(52,224,161,.08);border-color:rgba(52,224,161,.35)}
+.swap .sr span{font-size:13.5px;color:var(--tx-2)}
+.swap .sr.on span{color:var(--tx)}
+.swap .sr em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--tx-3);white-space:nowrap}
+.swap .sr.on em{color:var(--g)}
+
+.jump{display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr;gap:0;align-items:stretch;margin-top:28px}
+.jump .jc{padding:20px 18px;border-radius:14px;border:1px solid var(--line);background:var(--card);position:relative}
+.jump .ja{display:grid;place-items:center;color:var(--g);font-size:18px;font-family:var(--mono)}
+.jump .jc .act{font-family:var(--mono);font-size:10.5px;letter-spacing:1.2px;margin-bottom:8px;text-transform:uppercase}
+.jump .jc h4{font-size:15.5px;font-weight:650;margin-bottom:8px}
+.jump .jc p{font-size:12.5px;color:var(--tx-2);line-height:1.6}
+.jump .jc .prob{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-size:11.5px;color:var(--tx-3);line-height:1.55}
+.jump .jc .prob b{color:var(--a);font-weight:600}
+
+.rule{display:flex;align-items:center;gap:14px;margin-top:20px;padding:12px 16px;border-radius:12px;border:1px dashed rgba(167,139,250,.4);background:rgba(167,139,250,.06);max-width:720px}
+.rule .rk{font-family:var(--mono);font-size:11px;color:var(--v);letter-spacing:1px;white-space:nowrap}
+.rule .rv{font-size:13.5px;color:var(--tx)}
+
+.rail{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:28px;position:relative}
+.rail.six{grid-template-columns:repeat(6,1fr)}
+.rs{padding:16px 14px 18px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.025);position:relative}
+.rs .n{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--line-strong);color:var(--b);margin-bottom:12px;position:relative;z-index:1}
+.rs:nth-child(4) .n{color:var(--g);border-color:rgba(52,224,161,.4)}
+.rs:nth-child(5) .n{color:var(--v);border-color:rgba(167,139,250,.4)}
+.rs:nth-child(6) .n{color:var(--g);border-color:rgba(52,224,161,.4)}
+.rs h4{font-size:14px;font-weight:650;margin-bottom:6px;letter-spacing:-.2px}
+.rs p{font-size:12px;color:var(--tx-2);line-height:1.55}
+.rs .tag{display:inline-block;margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--tx-3);letter-spacing:.4px}
+
+.callouts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.callouts .co{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.callouts .co .n{font-family:var(--mono);font-size:10.5px;color:var(--g);letter-spacing:1px;margin-bottom:4px}
+.callouts .co p{font-size:12.5px;color:var(--tx-2);line-height:1.5}
+
+.vals{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.val{display:flex;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.025)}
+.val .vn{font-family:var(--mono);font-size:11px;color:var(--g);width:28px;flex-shrink:0;padding-top:2px}
+.val p{font-size:13.5px;color:var(--tx-2);line-height:1.55}
+
+.lanes{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;margin-top:28px}
+.lane{padding:24px 22px;border-radius:16px;border:1px solid var(--line);background:var(--card);position:relative;overflow:hidden}
+.lane.auto{border-color:rgba(52,224,161,.35);background:linear-gradient(160deg,rgba(52,224,161,.1),transparent)}
+.lane.semi{border-color:rgba(167,139,250,.35)}
+.lane .pct{font-family:var(--mono);font-size:42px;font-weight:700;letter-spacing:-2px;line-height:1;color:var(--g)}
+.lane.semi .pct{color:var(--v);font-size:36px}
+.lane .pct small{font-size:.45em;letter-spacing:0}
+.lane h4{font-size:16px;font-weight:650;margin:10px 0 6px}
+.lane p{font-size:13px;color:var(--tx-2);line-height:1.6}
+.lane .bar{height:6px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:18px;overflow:hidden}
+.lane .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--g),#7BECC0)}
+.lane.semi .bar i{background:linear-gradient(90deg,var(--v),#C4B5FD)}
+.lane .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:28px}
+.st{padding:22px 20px;border-radius:14px;border:1px solid var(--line);background:var(--card)}
+.st .sb{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:1px;padding:4px 10px;border-radius:999px;margin-bottom:14px}
+.st.done .sb{color:var(--g);background:rgba(52,224,161,.1);border:1px solid rgba(52,224,161,.3)}
+.st.now .sb{color:var(--a);background:rgba(245,177,76,.1);border:1px solid rgba(245,177,76,.3)}
+.st.next .sb{color:var(--v);background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3)}
+.st .abbr{font-family:var(--mono);font-size:22px;font-weight:700;margin-bottom:4px}
+.st.done .abbr{color:var(--g)}
+.st.now .abbr{color:var(--a)}
+.st.next .abbr{color:var(--v)}
+.st .who{font-size:12px;color:var(--tx-3);margin-bottom:12px}
+.st h4{font-size:14.5px;font-weight:650;margin-bottom:8px}
+.st p{font-size:12.5px;color:var(--tx-2);line-height:1.65}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.split .side{padding:18px 16px;border-radius:14px;border:1px solid var(--line)}
+.split .side.h{background:rgba(91,155,255,.08);border-color:rgba(91,155,255,.3)}
+.split .side.a{background:rgba(52,224,161,.08);border-color:rgba(52,224,161,.3)}
+.split .side .lab{font-family:var(--mono);font-size:11px;letter-spacing:1px;margin-bottom:12px}
+.split .side.h .lab{color:var(--b)}
+.split .side.a .lab{color:var(--g)}
+.split .side ul{list-style:none}
+.split .side li{font-size:13.5px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06);color:var(--tx)}
+.split .side li:last-child{border:0}
+
+.pit{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.pit .row{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.55}
+.pit .row .k{font-family:var(--mono);font-size:10px;letter-spacing:.6px;padding:2px 6px;border-radius:4px;flex-shrink:0;margin-top:1px}
+.pit .fix .k{color:var(--g);background:rgba(52,224,161,.1)}
+.pit .les .k{color:var(--a);background:rgba(245,177,76,.1)}
+.pit .row span{color:var(--tx-2)}
+
+.stepn{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.stepn .num{font-family:var(--mono);font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1;opacity:.7}
+.kcard .stepn .num{color:inherit}
+
+/* 讲者标签 / 分篇隔页 */
+.spk{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:5px 12px;border-radius:999px;margin-bottom:16px}
+.spk.sy{color:var(--b);border:1px solid rgba(91,155,255,.4);background:rgba(91,155,255,.1)}
+.spk.fm{color:var(--g);border:1px solid rgba(52,224,161,.35);background:rgba(52,224,161,.08)}
+.spk.lyj{color:var(--v);border:1px solid rgba(167,139,250,.4);background:rgba(167,139,250,.1)}
+.spk.us{color:var(--a);border:1px solid rgba(245,177,76,.35);background:rgba(245,177,76,.08)}
+.part{text-align:center}
+.part .no{font-family:var(--mono);font-size:12px;letter-spacing:3px;margin-bottom:18px;text-transform:uppercase}
+.part.sy .no{color:var(--b)}
+.part.fm .no{color:var(--g)}
+.part.lyj .no{color:var(--v)}
+.part.us .no{color:var(--a)}
+.part h2{font-size:clamp(30px,4vw,46px);font-weight:700;letter-spacing:-.04em;line-height:1.25}
+.part.era{text-align:left;max-width:980px}
+.part.era h2{
+  font-size:clamp(32px,4.4vw,52px);line-height:1.26;letter-spacing:-.038em;font-weight:650;color:var(--tx);
+}
+.part.era .era-desc{margin-top:32px;font-size:clamp(15px,1.5vw,17.5px);color:var(--tx-2);font-weight:400;line-height:1.8;max-width:820px}
+.part .ask{margin-top:18px;font-size:clamp(16px,1.6vw,20px);color:var(--tx-2);font-weight:500}
+.part .hint{margin-top:28px;font-size:14px;color:var(--tx-3);line-height:1.7}
+.part .tri{max-width:820px;margin:38px auto 0}
+.part .tri .ti{background:var(--card);border:1px solid var(--line);text-align:left}
+.part .tri .ti .n{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;margin-bottom:8px}
+.part.sy .tri .ti .n{color:var(--b)}
+.part .tri .ti h4{font-size:16px;font-weight:650;letter-spacing:-.2px;line-height:1.4;margin-bottom:8px}
+.part .tri .ti p{font-size:13px;color:var(--tx-2);line-height:1.65;margin:0}
+.speakers{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:32px}
+.speakers.three{grid-template-columns:1fr 1fr 1fr}
+.scard{padding:28px 26px;border-radius:18px;border:1px solid var(--line);background:var(--card)}
+.speakers.three .scard{padding:22px 18px}
+.scard.sy{border-color:rgba(91,155,255,.4);background:linear-gradient(160deg,rgba(91,155,255,.1),transparent)}
+.scard.fm{border-color:rgba(52,224,161,.35);background:linear-gradient(160deg,rgba(52,224,161,.1),transparent)}
+.scard.lyj{border-color:rgba(167,139,250,.4);background:linear-gradient(160deg,rgba(167,139,250,.1),transparent)}
+.scard .who{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;margin-bottom:10px}
+.scard.sy .who{color:var(--b)}
+.scard.fm .who{color:var(--g)}
+.scard.lyj .who{color:var(--v)}
+.scard h3{font-size:22px;font-weight:700;letter-spacing:-.3px;margin-bottom:12px;line-height:1.3}
+.speakers.three .scard h3{font-size:18px}
+.scard p{font-size:14px;color:var(--tx-2);line-height:1.7;margin-bottom:16px}
+.scard ul{list-style:none}
+.scard li{font-size:13.5px;color:var(--tx);padding:7px 0;border-top:1px dashed var(--line);line-height:1.6}
+.scard li:first-of-type{border-top:0}
+.same{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:22px;font-family:var(--mono);font-size:12px;color:var(--tx-3);letter-spacing:.4px}
+.same i{width:28px;height:1px;background:var(--line-strong);display:block}
+
+/* 自定义光标 */
+.cursor{position:fixed;top:0;left:0;z-index:9999;pointer-events:none;mix-blend-mode:screen;will-change:transform}
+.cursor .ring,.cursor .dot{position:absolute;top:0;left:0;border-radius:50%;transform:translate(-50%,-50%)}
+.cursor .dot{width:6px;height:6px;background:var(--g);box-shadow:0 0 12px rgba(52,224,161,.8)}
+.cursor .ring{width:28px;height:28px;border:1.5px solid rgba(52,224,161,.7);transition:width .25s var(--ease),height .25s var(--ease),background .25s,border-color .25s}
+.cursor.hover .ring{width:44px;height:44px;background:rgba(52,224,161,.12);border-color:var(--g)}
+.cursor.click .ring{width:20px;height:20px}
+.cursor.hide,.coarse-pointer .cursor{display:none}
+.flex-modal,.flex-modal *{cursor:auto}
+body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
+
+/* 响应式 */
+@media (max-width:1100px){
+  .two,.two-w,.two-wr,.grid2,.grid3,.grid4,.caps,.pre-grid,.pmap,.goal-top,.keys-grid,.flist,.route-pair,.analogy,.shift,.tl3,.tri,.callouts,.lanes,.stats,.split,.jump,.rail,.pair,.speakers,.speakers.three,.two-col-steps{grid-template-columns:1fr}
+  .caps .kcard,.caps .kcard:nth-child(n+4),.keys-grid .rrow,.keys-grid .rrow:nth-child(n+4){grid-column:1 / -1}
+  .pre-item{grid-template-columns:1fr}
+  .fld{grid-template-columns:1fr}
+  .grule .ex{grid-template-columns:1fr}
+  .prow .arr{padding:2px 0}
+  .keyflow{flex-wrap:wrap;gap:8px}
+  .keyflow .ka{display:none}
+  .keyflow .kk{flex:1 1 30%}
+  .shift{flex-direction:column}
+  .sh-arrow{transform:rotate(90deg);padding:4px 0}
+  .jump .ja,.tl3::before,.rail::before,.pair .pm{display:none}
+  .vs{grid-template-columns:1fr}
+  .vs .mid{padding:12px 0}.vs .mid .arr{transform:rotate(90deg);animation:none}
+  .tb-r .hint,.side-nav{display:none}
+  .figure,.figure img{max-height:none}
+}
+@media (max-width:760px){
+  .slide{padding:72px 6vw 56px}
+  .flex-modal .cols,.al-row{grid-template-columns:1fr}
+  .al-row .arr{transform:rotate(90deg);padding:6px 0}
+}
+@media print{
+  body{overflow:visible;background:#fff}
+  .stage{overflow:visible;margin:0!important}
+  .slide{min-height:0;page-break-after:always;padding:30px}
+  .topbar,.progress,.pagenum,.glow,.side-nav,.flex-modal{display:none!important}
+  .reveal{opacity:1!important;transform:none!important}
+}
+</style>
+</head>
+<body>
+<div class="cursor" id="cursor" aria-hidden="true"><div class="ring"></div><div class="dot"></div></div>
+
+<!-- 顶栏 -->
+<div class="topbar">
+  <div class="tb-l">
+    <span class="tb-brand"><span class="mark"></span><b>UED</b></span>
+    <span class="tb-spk" id="tb-spk">内部分享</span>
+  </div>
+  <div class="tb-r">
+    <span class="hint"><kbd>→</kbd> Next</span>
+  </div>
+</div>
+<div class="progress" id="progress"></div>
+<div class="pagenum"><b id="pg-cur">01</b> / <span id="pg-total">—</span></div>
+<nav class="side-nav" id="sideNav" aria-label="章节导航"></nav>
+
+<div class="flex-modal" id="flexModal" role="dialog" aria-modal="true" aria-labelledby="flexTitle">
+  <div class="dim" id="flexDim"></div>
+  <div class="box">
+    <div class="mh">
+      <h3 id="flexTitle">同一套结构：<span>Auto Layout</span> ↔ Flexbox</h3>
+      <button class="x" id="flexClose" type="button" title="关闭 (Esc)">✕</button>
+    </div>
+    <p class="lead">设计师在 Figma 里用 Auto Layout 想的「方向、间距、对齐、撑满」，前端用 Flexbox 写的是同一件事。属性一一对上，AI 才能出活的代码；对不齐，出来的全是绝对定位和死像素。</p>
+    <div class="cols"><span class="b">Figma · Auto Layout</span><span></span><span class="g">CSS · Flexbox</span></div>
+    <div class="al-map">
+      <div class="al-row"><div><div class="k">Direction</div><div class="v">Horizontal / Vertical</div></div><div class="arr">→</div><div><div class="k">flex-direction</div><div class="v">row / column</div></div></div>
+      <div class="al-row"><div><div class="k">Spacing between items</div><div class="v">间距</div></div><div class="arr">→</div><div><div class="k">gap</div><div class="v">子项间距</div></div></div>
+      <div class="al-row"><div><div class="k">Padding</div><div class="v">内边距</div></div><div class="arr">→</div><div><div class="k">padding</div><div class="v">盒内边距</div></div></div>
+      <div class="al-row"><div><div class="k">Alignment · 主轴</div><div class="v">Packed / Space between</div></div><div class="arr">→</div><div><div class="k">justify-content</div><div class="v">flex-start / space-between</div></div></div>
+      <div class="al-row"><div><div class="k">Alignment · 交叉轴</div><div class="v">Top / Center / Bottom</div></div><div class="arr">→</div><div><div class="k">align-items</div><div class="v">flex-start / center / flex-end</div></div></div>
+      <div class="al-row"><div><div class="k">Hug contents</div><div class="v">拥抱内容</div></div><div class="arr">→</div><div><div class="k">width / height</div><div class="v">fit-content</div></div></div>
+      <div class="al-row"><div><div class="k">Fill container</div><div class="v">撑满容器</div></div><div class="arr">→</div><div><div class="k">flex / width</div><div class="v">flex: 1 或 100%</div></div></div>
+      <div class="al-row"><div><div class="k">Wrap</div><div class="v">换行</div></div><div class="arr">→</div><div><div class="k">flex-wrap</div><div class="v">wrap</div></div></div>
+    </div>
+    <div class="foot">D2C 靠的就是这张对照表。图层是 Frame + Auto Layout，代码才是 <b>div + flex</b>。活动页也一样：结构对上了，出码才不是死字符串。</div>
+  </div>
+</div>
+
+<div class="flex-modal" id="capModal" role="dialog" aria-modal="true" aria-labelledby="capTitle">
+  <div class="dim" id="capDim"></div>
+  <div class="box">
+    <div class="mh">
+      <h3 id="capTitle"></h3>
+      <button class="x" id="capClose" type="button" title="关闭 (Esc)">✕</button>
+    </div>
+    <div id="capBody"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="图片放大查看">
+  <div class="dim" id="lbDim"></div>
+  <img id="lbImg" src="" alt="">
+  <div class="lb-cap" id="lbCap"></div>
+  <button class="x" id="lbClose" type="button" title="关闭 (Esc)">✕</button>
+</div>
+
+<div class="stage" id="stage">
+
+<section class="slide cover" id="s0" data-title="封面" data-time="1 min" data-spk="开场">
+  <div class="glow" style="width:600px;height:600px;background:radial-gradient(circle,rgba(0,214,143,.16),transparent 65%);top:-180px;right:-120px"></div>
+  <div class="glow" style="width:500px;height:500px;background:radial-gradient(circle,rgba(167,139,250,.14),transparent 65%);bottom:-160px;left:-100px"></div>
+  <div class="slide-in">
+    <div class="hero">
+      <div class="badge-top">◆ 众安 UED 内部分享</div>
+      <h1>AI驱动下的设计工程化与生产范式变革</h1>
+      <p class="subh">D20 峰会 · 大麦 UED 用 14 个月，把「<em>一句话需求 → 设计 → 代码</em>」跑成了一条自动化产线</p>
+    </div>
+    <div class="story">
+      <p class="lead">复盘大麦 UED 在 D20 的实践。同一条产线，问题一层层递进：人怎么变、路怎么走、系统怎么做成。</p>
+      <div class="pipe">
+        <div class="pn">Prompt</div><div class="pa">→</div>
+        <div class="pn">Design</div><div class="pa">→</div>
+        <div class="pn g">Code</div>
+      </div>
+    </div>
+    <div class="meta">
+      <span><b>分享人</b>斯琴托娅</span>
+      <span><b>源分享</b>石悦 · 方明 · 李艺君（大麦 UED / Alibaba Design）</span>
+      <span><b>场合</b>UED 4 组 · 内部交流</span>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="s-agenda" data-title="今天怎么听" data-time="1.5 min" data-spk="开场">
+  <div class="slide-in">
+    <h2 class="t">同一条产线，问题一层层递进</h2>
+    <div class="speakers three">
+      <div class="scard sy">
+        <div class="who">01 · 问题</div>
+        <h3>人要先变什么</h3>
+        <p>设计有没有变简单，卡在哪，角色、认知、能力怎么转。</p>
+        <ul>
+          <li>角色：Designer → Engineer</li>
+          <li>认知：规范写成 AI 能读的文件</li>
+          <li>能力：五大模块对照看</li>
+        </ul>
+      </div>
+      <div class="scard fm">
+        <div class="who">02 · 路径</div>
+        <h3>14 个月怎么走、走出什么</h3>
+        <p>三次跃迁、效率对比，以及真实是不是全自动。</p>
+        <ul>
+          <li>路径：A2D → D2C → P2D2C</li>
+          <li>结果：同一需求 4.5 天 → 1.5 小时</li>
+          <li>真实：六四开，不是全自动神话</li>
+        </ul>
+      </div>
+      <div class="scard lyj">
+        <div class="who">03 · 系统与方法</div>
+        <h3>平台怎么做成，经验怎么带走</h3>
+        <p>怎么用、五个架构、踩过的坑，以及可复用的协作方法。</p>
+        <ul>
+          <li>工作台：输入 → 澄清 → 预览 → 迭代</li>
+          <li>五个架构：喂知识、问需求、订协议</li>
+          <li>方法：规则文件化，人决策、AI 执行</li>
+        </ul>
+      </div>
+    </div>
+    <div class="same"><i></i>问题 → 路径 → 系统 → 方法<i></i></div>
+  </div>
+</section>
+
+
+<!-- ========== 问题 ========== -->
+<section class="slide" id="sy-easy" data-title="AI 时代，设计是否变得简单了？" data-time="0.5 min" data-spk="问题">
+  <div class="glow" style="width:640px;height:480px;background:radial-gradient(circle,rgba(91,155,255,.18),transparent 65%);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div class="slide-in">
+    <div class="part sy">
+      <h2>AI 时代，设计是否变得简单了？</h2>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="sy-undeliver" data-title="设计系统无法被交付" data-time="1.5 min" data-spk="问题">
+  <div class="slide-in">
+    <div class="tl3" style="margin-top:0">
+      <div class="tp">
+        <div class="yr">2014</div>
+        <div class="nm">高保真原型 + 注解</div>
+        <div class="ds">Axure + 200 页 PRD</div>
+      </div>
+      <div class="tp">
+        <div class="yr">2020</div>
+        <div class="nm">Figma + Design Token</div>
+        <div class="ds">抽组件、定 Token、写规范、做设计系统</div>
+      </div>
+      <div class="tp">
+        <div class="yr">2026</div>
+        <div class="nm">需求意图 + 设计 Agent</div>
+        <div class="ds">需求意图交给设计 Agent</div>
+      </div>
+    </div>
+    <p class="lede mt">过去十年，B 端设计师做的最重要的一件事，叫设计的工程化——抽组件、定 Token、写规范、做设计系统……</p>
+    <p class="lede" style="margin-top:16px">但有一件事一直没变——设计师交付的，永远是图。一张图被前端实现的那一刻，我们的「系统」就破了一道口子。</p>
+    <div class="quote" style="margin-top:32px;font-size:clamp(18px,2.1vw,26px);line-height:1.45;max-width:920px;color:var(--g);border-left-color:var(--g)">过去十年，设计系统是规则，是无法被交付的</div>
+  </div>
+</section>
+
+<section class="slide" id="sy-bottleneck" data-title="AI + 设计的四个瓶颈" data-time="1 min" data-spk="问题">
+  <div class="slide-in">
+    <h2 class="t">实际上，AI + 设计遇到的瓶颈</h2>
+    <div class="rail" style="grid-template-columns:repeat(4,1fr);margin-top:36px">
+      <div class="rs"><div class="n">01</div><h4>设计系统不匹配</h4></div>
+      <div class="rs"><div class="n">02</div><h4>需求理解不精准</h4></div>
+      <div class="rs"><div class="n">03</div><h4>无法交付到下游</h4></div>
+      <div class="rs"><div class="n">04</div><h4>数据安全不保障</h4></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="sy3" data-title="角色怎么变？" data-time="1.5 min" data-spk="问题">
+  <div class="slide-in">
+    <h2 class="t">角色怎么变？</h2>
+    <p class="sub">会用 AI 把图画得更快，还停在 Designer。能定义规则、能搭产线，才是 Engineer。</p>
+    <div class="analogy">
+      <div class="ana bad"><div class="lab">停在这里不够</div><h4>AI Designer</h4><p>会用工具，把图画得更快。还是在「画图」这件事上提效。</p></div>
+      <div class="ana good"><div class="lab">要去的位置</div><h4>AI Design Engineer</h4><p>不是更快出图，而是变成能定义规则、能搭产线的人。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="sy4" data-title="认知怎么变？" data-time="1.5 min" data-spk="问题">
+  <div class="slide-in">
+    <h2 class="t">认知怎么变？规范要能被 AI 读</h2>
+    <p class="sub">AI 不读图，也不读 PDF。它只认结构化的东西。所以规范不能只活在 Figma 和脑子里，得写成 Token，写成规则文件。</p>
+    <div class="shift">
+      <div class="sh from"><div class="lab">从</div><h4>规范在 Figma 里</h4><p>按钮多大、什么红不能用，靠人翻稿、靠经验。换个窗口，AI 就忘了。</p></div>
+      <div class="sh-arrow">→</div>
+      <div class="sh to"><div class="lab">到</div><h4>规范写成文件</h4><p>按钮用法、海报字号、合规红线，写成 AI 每次都会读到的规则文件。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="sy5" data-title="能力要补哪几块？" data-time="2 min" data-spk="问题">
+  <div class="slide-in">
+    <h2 class="t">能力要补哪几块？</h2>
+    <p class="sub">拆解、结构化、编码、编排、治理。五大模块摆在这，我们对照自己看。点卡片可以展开。</p>
+    <div class="caps">
+      <div class="kcard" data-cap="cap1" tabindex="0" role="button">
+        <div class="k-i">01</div>
+        <h4>设计系统拆解</h4>
+        <p>把规范拆成 Token、Component、Pattern、Template 四层，每层都能被 AI 单独索引。</p>
+        <div class="keys"><span>Design Token</span><span>Figma Variables</span><span>组件库治理</span></div>
+        <div class="al-hint">点击展开四层</div>
+      </div>
+      <div class="kcard al-hot" id="alCard" tabindex="0" role="button">
+        <div class="k-i">02</div>
+        <h4>结构化布局思维</h4>
+        <p>从自由画布切到 Auto Layout，和 Flexbox 一一对应。布局写成结构，AI 才接得住。</p>
+        <div class="keys"><span>Auto Layout</span><span>Slot 插槽</span><span>Props 映射</span></div>
+        <div class="al-hint">点击对照 Auto Layout ↔ Flexbox</div>
+      </div>
+      <div class="kcard" data-cap="cap3" tabindex="0" role="button">
+        <div class="k-i">03</div>
+        <h4>AI Coding 实操</h4>
+        <p>不是聊一次天。是能驱动代码、从 0 把工具搭起来，反复用、能验收。</p>
+        <div class="keys"><span>Harness</span><span>Protocol</span><span>Loop</span></div>
+        <div class="al-hint">点击展开护栏 / 协议 / 循环</div>
+      </div>
+      <div class="kcard" data-cap="cap4" tabindex="0" role="button">
+        <div class="k-i">04</div>
+        <h4>Agent 编排</h4>
+        <p>意图识别、上下文挂点、多 Agent 协同。大活拆开，每步派一个专职的。</p>
+        <div class="keys"><span>澄清 Agent</span><span>生成 Agent</span><span>质检出码</span></div>
+        <div class="al-hint">点击展开分工</div>
+      </div>
+      <div class="kcard" data-cap="cap5" tabindex="0" role="button">
+        <div class="k-i">05</div>
+        <h4>AI 设计资产治理</h4>
+        <p>把散落在文档和脑子里的经验，沉淀成可复用、可演进、可被 AI 点名调用的资产。</p>
+        <div class="keys"><span>设计系统 SOP</span><span>资产 Skills</span><span>规范迭代</span></div>
+        <div class="al-hint">点击展开三条标准</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section class="slide" id="fm5" data-title="三级跳" data-time="2 min" data-spk="路径">
+  <div class="slide-in">
+    <h2 class="t">大麦 UED 14 个月，三次生产力跃迁</h2>
+    <div class="jump">
+      <div class="jc" style="border-top:2px solid var(--b)">
+        <div class="act" style="color:var(--b)">ACT 1 · A2D</div>
+        <h4>用 AI 让个体先快</h4>
+        <p>组件库投喂 Figma Make，IDE 插件出稿。</p>
+        <div class="prob"><b>暴露：</b>单点提效，辐射不了全局、无法像素级还原。</div>
+      </div>
+      <div class="ja">→</div>
+      <div class="jc" style="border-top:2px solid var(--g)">
+        <div class="act" style="color:var(--g)">ACT 2 · D2C</div>
+        <h4>让 AI 看懂设计稿</h4>
+        <p>Token + 组件库 + Code Connect。</p>
+        <div class="prob"><b>解决：</b>规范说明、前端重写、联调返工。</div>
+      </div>
+      <div class="ja">→</div>
+      <div class="jc" style="border-top:2px solid var(--v)">
+        <div class="act" style="color:var(--v)">ACT 3 · P2D2C</div>
+        <h4>串成端到端产线</h4>
+        <p>需求 → 设计 → 代码，一条流水线。</p>
+        <div class="prob"><b>角色：</b>从「画图的人」变成「定义规则的人」。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="fm3" data-title="效率对比" data-time="1.5 min" data-spk="路径">
+  <div class="slide-in">
+    <h2 class="t">同一个 CRM 需求，两种交付方式</h2>
+    <p class="sub">三次跃迁跑出来的结果：同一需求，6 个页面，从 4.5 天到 1.5 小时。</p>
+    <div class="vs">
+      <div class="col old">
+        <h5>传统工作流 · 6 个核心页面</h5>
+        <div class="row"><span class="t">需求理解 & 业务梳理</span><span class="v">0.5 天</span></div>
+        <div class="row"><span class="t">交互方案设计</span><span class="v">1–2 天</span></div>
+        <div class="row"><span class="t">组件 / 布局拼装</span><span class="v">0.5 天</span></div>
+        <div class="row"><span class="t">视觉细化 & 交互标注</span><span class="v">0.5 天</span></div>
+        <div class="row"><span class="t">走查 / 改稿 / 联调</span><span class="v">1 天</span></div>
+        <div class="total"><span class="lab">合计</span><span class="num">≈ 4.5 天</span></div>
+      </div>
+      <div class="mid"><div class="arr">→</div></div>
+      <div class="col new">
+        <h5>AI 驱动工作流 · 同一需求</h5>
+        <div class="row"><span class="t">需求意图澄清</span><span class="v">30 min</span></div>
+        <div class="row"><span class="t">需求自然语言描述</span><span class="v">6 min</span></div>
+        <div class="row"><span class="t">Agent 自动生产</span><span class="v">15 min</span></div>
+        <div class="row"><span class="t">设计师 Review & 微调</span><span class="v">30 min</span></div>
+        <div class="row"><span class="t">走查 / 改稿 / 联调</span><span class="v">省略</span></div>
+        <div class="total"><span class="lab">合计</span><span class="num">≈ 1.5 小时</span></div>
+      </div>
+    </div>
+    <p class="flow-cap">// 省掉的几乎是重复体力，设计师的判断力反而被放大了</p>
+  </div>
+</section>
+
+<section class="slide" id="fm10" data-title="双链路" data-time="1.5 min" data-spk="路径">
+  <div class="slide-in">
+    <h2 class="t">产线搭成之后，真实图景不是全自动神话</h2>
+    <p class="sub">先看页面类型，再选链路，不强求全自动——大约六四开。</p>
+    <div class="lanes">
+      <div class="lane auto">
+        <div class="pct">60<small>%</small></div>
+        <h4>P2D2C · 全自动</h4>
+        <p>一句话 → 选模板 → JSON → 质检 → 出码 → CR → 推仓库。</p>
+        <div class="tags"><span class="badge g">列表</span><span class="badge g">表单</span><span class="badge g">数据看板</span></div>
+        <div class="bar"><i style="width:60%"></i></div>
+      </div>
+      <div class="lane semi">
+        <div class="pct">40<small>%</small></div>
+        <h4>D2C · 半自动</h4>
+        <p>人先画高精度稿 → MCP 取数 → Skills 生码。</p>
+        <div class="tags"><span class="badge">营销活动</span><span class="badge">个性运营页</span><span class="badge">高复杂交互</span></div>
+        <div class="bar"><i style="width:40%"></i></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="d-platform" data-title="开启设计的自动驾驶时代" data-time="0.5 min" data-spk="平台">
+  <div class="glow" style="width:640px;height:480px;background:radial-gradient(circle,rgba(52,224,161,.14),transparent 65%);top:18%;left:8%"></div>
+  <div class="glow" style="width:520px;height:420px;background:radial-gradient(circle,rgba(91,155,255,.12),transparent 65%);bottom:8%;right:6%"></div>
+  <div class="slide-in">
+    <div class="part lyj era">
+      <h2>开启设计的自动驾驶时代<br>智能体驱动的设计新交付模式</h2>
+      <p class="era-desc">构建AI Agent平台打造AI时代的设计新操作系统，实现意图驱动的<br>设计生产及交付新引擎</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-pre" data-title="前置自建验证" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">PART 01 · 做了什么</div>
+    <h2 class="t">P2D平台设计侧前置自建验证</h2>
+    <p class="sub">设计师的前置探索验证 —— 正式工程之前，快速验证系统流程和技术可行性</p>
+    <div class="pre-grid">
+      <div class="pre-list">
+        <div class="pre-item"><h4>需求描述输入</h4><p>自然语言描述或需求文档，无需额外复杂配置</p></div>
+        <div class="pre-item"><h4>需求澄清交互</h4><p>AI 与人类共同对齐需求理解，避免歧义</p></div>
+        <div class="pre-item"><h4>遵循设计规范</h4><p>Token / 组件 / 规范等设计约束注入</p></div>
+        <div class="pre-item"><h4>实时沙盒渲染</h4><p>所见即所得，可点击交互的真实 UI</p></div>
+        <div class="pre-item"><h4>思维链可视化</h4><p>展示 AI 推理过程 + debug 模式，透明可审查</p></div>
+        <div class="pre-item"><h4>多种预览模式</h4><p>单页 / 画板 / 交互标注 / Dev 模式，方便交付</p></div>
+        <div class="pre-item"><h4>多轮迭代编辑</h4><p>已生成内容基础上可持续修改完善</p></div>
+      </div>
+      <div class="pre-side">
+        <div class="pre-card">
+          <div class="k-i">定位清晰</div>
+          <h4>快速构建系统验证</h4>
+          <p>实验性平台，快速验证「大模型理解自然语言 / PRD 输入并输出符合大麦设计规范的 B 端代码化设计」核心命题</p>
+        </div>
+        <div class="pre-card hot">
+          <div class="k-i">核心价值</div>
+          <h4>意图 → B 端设计自动化，规范的代码化设计，一步到位</h4>
+          <p>同时支持 A2D（自然语言输入）和 P2D（需求文档上传）两种输入模式</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-goal" data-title="从核心目标出发" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">PART 01 · 做了什么</div>
+    <h2 class="t">从核心目标出发，构建出整个平台</h2>
+    <p class="sub">每个功能的背后，都有具体的问题在驱动</p>
+    <div class="goal-top">
+      <div class="core-box">
+        <span class="tag">核心命题</span>
+        <p>通过自然语言 / PRD 文档输入，生成<b>符合大麦 B 端规范</b>的可交付设计</p>
+      </div>
+      <p class="quote a">产品思维：先想清楚每层的核心问题，功能边界自然就清晰了——这比罗列功能清单更有价值。</p>
+    </div>
+    <div class="pmap">
+      <div class="prow"><p class="prob">AI 不了解我们的 B 端设计规范和组件系统</p><div class="arr">→</div><div class="layer"><b>知识层</b><span>设计知识库 · 规范注入</span></div></div>
+      <div class="prow"><p class="prob">自然语言和 PRD 里总有模糊地带，AI 可能理解偏</p><div class="arr">→</div><div class="layer"><b>理解层</b><span>需求澄清 · 人机理解对齐</span></div></div>
+      <div class="prow"><p class="prob">生成后如何实时查看、所见即所得地预览</p><div class="arr">→</div><div class="layer"><b>渲染层</b><span>渲染引擎 · 多种预览模式</span></div></div>
+      <div class="prow"><p class="prob">需要交互标注 + 设计参数才能真正交付开发</p><div class="arr">→</div><div class="layer"><b>交付层</b><span>Dev 预览 · 设计标注</span></div></div>
+      <div class="prow"><p class="prob">一次生成不一定满意，需要持续迭代和局部优化</p><div class="arr">→</div><div class="layer"><b>迭代层</b><span>多轮对话 · 迭代优化</span></div></div>
+      <div class="prow"><p class="prob">要在团队中真正落地，不只是本地 Demo</p><div class="arr">→</div><div class="layer"><b>产品化</b><span>生产部署 · 项目管理</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj1b" data-title="平台怎么用" data-time="2 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">PART 01 · 做了什么</div>
+    <h2 class="t">设计师实际怎么用这个平台</h2>
+    <div class="two-w" style="margin-top:20px">
+      <div class="steps compact switch" style="margin-top:0">
+        <div class="stepi on" data-shot="0"><div class="n v">1</div><div><h4>两种输入</h4><p>A2D：打一句话。P2D：上传 PRD（支持 PDF / Word）。同一套后续流程。</p></div></div>
+        <div class="stepi" data-shot="1"><div class="n v">2</div><div><h4>需求澄清</h4><p>系统先亮「需求理解摘要」，再按优先级问你。选项点击，不是写作文。</p></div></div>
+        <div class="stepi" data-shot="2"><div class="n v">3</div><div><h4>确认书</h4><p>10 项结构化确认，「本次不包含」必填。对齐了才生成。</p></div></div>
+        <div class="stepi" data-shot="3"><div class="n v">4</div><div><h4>四种预览</h4><p>单页 / 画板（无限缩放）/ 交互标注 Inspect / Dev 模式（看 CSS 和 Token 映射）。</p></div></div>
+        <div class="stepi" data-shot="3"><div class="n v">5</div><div><h4>多轮改</h4><p>继续说话即可。当前画布会自动带上，局部改，不推倒。</p></div></div>
+      </div>
+      <div class="use-pane">
+        <div class="figure" id="useFigure"><img id="useShotImg" alt="设计师怎么用"><div class="cap" id="useShotCap"></div></div>
+        <div class="thumbs" id="useThumbs"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-think" data-title="先想清楚再写代码" data-time="2 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">PART 02 · 怎么做的</div>
+    <h2 class="t">先想清楚核心架构，再开始写代码</h2>
+    <p class="sub">五个关键设计从核心命题推出来，把整座平台串起来。后面逐个拆开。</p>
+    <div class="goal-top">
+      <div class="core-box">
+        <span class="tag">核心命题</span>
+        <p>通过自然语言 / PRD 输入，生成符合大麦 B 端规范的可交付设计</p>
+      </div>
+      <p class="quote a">核心认知：对问题的理解程度，很大程度上决定了系统的质量上限。先想清楚再动手，事半功倍。</p>
+    </div>
+    <div class="rlayers keys-grid">
+      <div class="rrow"><div class="lv num">01</div><div><h4>知识注入系统</h4><p>让 AI 读懂大麦 B 端设计规范</p></div><span class="tag">知识层</span></div>
+      <div class="rrow"><div class="lv num">02</div><div><h4>需求澄清交互</h4><p>生成前先对齐，消除模糊地带</p></div><span class="tag">理解层</span></div>
+      <div class="rrow"><div class="lv num">03</div><div><h4>输出协议设计</h4><p>结构化 JSON 合约 + 多层兜底解析</p></div><span class="tag">协议层</span></div>
+      <div class="rrow al-hot" data-cap="key4" tabindex="0" role="button" aria-haspopup="dialog">
+        <div class="lv num">04</div>
+        <div>
+          <h4>多种渲染引擎</h4>
+          <p>JSON 精确模式 vs JSX 灵活模式</p>
+          <ul class="dots">
+            <li>JSON：列表 / 表单 / 详情，按组件精确还原，不跑偏</li>
+            <li>JSX：复杂交互、非标页，自由拼，适合先试</li>
+            <li>AI 自己选模式；JSON 挂了自动切 JSX，人看不到白屏</li>
+          </ul>
+          <div class="al-hint">点击展开两种模式</div>
+        </div>
+        <span class="tag">渲染层</span>
+      </div>
+      <div class="rrow al-hot" data-cap="key5" tabindex="0" role="button" aria-haspopup="dialog">
+        <div class="lv num">05</div>
+        <div>
+          <h4>多轮迭代编辑</h4>
+          <p>上下文感知，多轮对话迭代完善设计</p>
+          <ul class="dots">
+            <li>每次改，自动带上当前画布，只动你说的那块</li>
+            <li>不带上就会整页重画——不是模型笨，是状态没跟上</li>
+            <li>画布、对话、渲染模式一起存、一起恢复</li>
+          </ul>
+          <div class="al-hint">点击展开怎么接着改</div>
+        </div>
+        <span class="tag">迭代层</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-inject" data-title="知识注入系统" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 1 · 知识注入</div>
+    <h2 class="t">知识注入系统</h2>
+    <p class="sub">大模型不懂大麦 B 端设计规范——得主动喂给它。八个文件按优先级注入 System Prompt。</p>
+    <div class="flist">
+      <div class="fi"><div class="fn">01</div><div class="ff">system-prompt.md</div><div class="fd">核心指令，最高权威</div></div>
+      <div class="fi"><div class="fn">02</div><div class="ff">B-End-Design-System.md</div><div class="fd">B 端设计系统规范</div></div>
+      <div class="fi"><div class="fn">03</div><div class="ff">Style-Supplement.md</div><div class="fd">样式补充规范</div></div>
+      <div class="fi"><div class="fn">04</div><div class="ff">components-map.md</div><div class="fd">组件映射表</div></div>
+      <div class="fi"><div class="fn">05</div><div class="ff">design-tokens.md</div><div class="fd">Design Token 说明</div></div>
+      <div class="fi"><div class="fn">06</div><div class="ff">scene-patterns/list-page-pattern.md</div><div class="fd">场景规范 · 列表页</div></div>
+      <div class="fi"><div class="fn">07</div><div class="ff">scene-patterns/form-page-pattern.md</div><div class="fd">场景规范 · 表单页</div></div>
+      <div class="fi"><div class="fn">08</div><div class="ff">scene-patterns/dashboard-pattern.md</div><div class="fd">场景规范 · 数据看板</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-routes" data-title="知识怎么喂、怎么检索" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 1 · 知识注入</div>
+    <h2 class="t">知识怎么喂？喂进去之后怎么检索？</h2>
+    <p class="sub">大模型不懂大麦 B 端规范——这是整个系统最底层的问题。调研多条技术路线后，选择分阶段演进，而不是第一天就押注最重的方案。</p>
+    <div class="route-pair">
+      <div class="kcard al-hot" data-cap="k1reg" tabindex="0" role="button" aria-haspopup="dialog">
+        <div class="k-i">方案一 · Registry 路由</div>
+        <h4>给 AI 一本目录手册，让它自己去书架找书</h4>
+        <div class="rflow">
+          <div class="rf"><div class="n">01</div><h4>用户指令</h4></div>
+          <div class="ra">→</div>
+          <div class="rf"><div class="n">02</div><h4>查路由表 CLAUDE.md</h4></div>
+          <div class="ra">→</div>
+          <div class="rf"><div class="n">03</div><h4>自主读取对应文件</h4></div>
+          <div class="ra">→</div>
+          <div class="rf"><div class="n">04</div><h4>生成代码</h4></div>
+        </div>
+        <div class="al-hint">点击展开：目录怎么用</div>
+      </div>
+      <div class="kcard al-hot" data-cap="k1rag" tabindex="0" role="button" aria-haspopup="dialog">
+        <div class="k-i">方案二 · RAG 检索</div>
+        <h4>给 AI 配一个图书管理员，先帮它找好相关资料再开始工作</h4>
+        <div class="rflow">
+          <div class="rf"><div class="n">01</div><h4>用户指令</h4></div>
+          <div class="ra">→</div>
+          <div class="rf"><div class="n">02</div><h4>向量数据库语义检索</h4></div>
+          <div class="ra">→</div>
+          <div class="rf"><div class="n">03</div><h4>精准片段注入 Prompt</h4></div>
+          <div class="ra">→</div>
+          <div class="rf"><div class="n">04</div><h4>生成代码</h4></div>
+        </div>
+        <div class="al-hint">点击展开：为什么会切碎</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-base" data-title="同一套知识底座" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 1 · 知识注入</div>
+    <h2 class="t">两条路线操作的是同一套知识底座</h2>
+    <p class="sub">Design Rules 五层体系 —— 选哪条路线不影响知识本身的建设，现在开始做都不会浪费</p>
+    <div class="rlayers">
+      <div class="rrow"><div class="lv">L4</div><div><h4>强约束规则</h4><p>必须遵守的底线，如禁止自创组件</p></div><span class="tag hot">重点完善</span><i class="bar" style="width:90%"></i></div>
+      <div class="rrow"><div class="lv">L3</div><div><h4>全局交互规则</h4><p>跨页面一致的交互模式规范</p></div><span class="tag hot">重点完善</span><i class="bar" style="width:75%"></i></div>
+      <div class="rrow"><div class="lv">L1</div><div><h4>组件使用规则</h4><p>每个组件的用法、属性与限制</p></div><span class="tag hot">重点完善</span><i class="bar" style="width:75%"></i></div>
+      <div class="rrow"><div class="lv">L2</div><div><h4>典型页面 JSON 描述</h4><p>页面级 Schema 示例，指导布局组合</p></div><span class="tag mid">持续建设</span><i class="bar" style="width:50%"></i></div>
+      <div class="rrow"><div class="lv">L0</div><div><h4>业务定制规则</h4><p>场景专属规则，待持续补充</p></div><span class="tag">规划补充</span><i class="bar" style="width:25%"></i></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k2ctx" data-title="AI 并不真正理解业务上下文" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 2 · 需求澄清</div>
+    <h2 class="t">AI 并不真正理解你的业务上下文</h2>
+    <p class="sub">自然语言和需求文档，提供的信息往往是不完整的</p>
+    <div class="analogy" style="margin-top:22px;max-width:none">
+      <div class="ana good">
+        <div class="lab">传统设计协作</div>
+        <h4>产品 → 设计师</h4>
+        <ul>
+          <li>PRD 写了，但有模糊地带</li>
+          <li>设计师主动追问、拉会对齐</li>
+          <li>反复沟通，最终对齐到准确需求</li>
+          <li>然后才动手出设计</li>
+        </ul>
+        <p class="foot">✓ 靠人工沟通填补信息缺口</p>
+      </div>
+      <div class="ana bad">
+        <div class="lab">AI 平台 · 没有澄清环节时</div>
+        <h4>用户输入 → AI 直接生成</h4>
+        <ul>
+          <li>自然语言描述，信息不完整</li>
+          <li>PRD 上传，但 AI 不了解业务背景</li>
+          <li>AI 自行「脑补」缺失信息</li>
+          <li>生成结果偏差，大量返工</li>
+        </ul>
+        <p class="foot">✗ 模糊输入 → 不可预测的输出</p>
+      </div>
+    </div>
+    <p class="quote a">核心洞察：在真实的产设研协作里，「对齐」是设计开始前必不可少的环节。AI 平台同样需要这个机制——只是换一种方式实现。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k2agent" data-title="需求澄清 Agent" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 2 · 需求澄清</div>
+    <h2 class="t">需求澄清 Agent：先对齐，再动手</h2>
+    <p class="sub">在生成设计之前，先让 AI 把需求中不确定的地方问清楚</p>
+    <div class="keyflow tight">
+      <div class="kk"><div class="n">01</div><h4>收到需求输入</h4></div>
+      <div class="ka">→</div>
+      <div class="kk"><div class="n">02</div><h4>澄清 Agent<br>识别模糊点</h4></div>
+      <div class="ka">→</div>
+      <div class="kk"><div class="n">03</div><h4>结构化提问<br>选项交互</h4></div>
+      <div class="ka">→</div>
+      <div class="kk"><div class="n">04</div><h4>用户逐项<br>确认对齐</h4></div>
+      <div class="ka">→</div>
+      <div class="kk"><div class="n">05</div><h4>生成准确<br>设计产物</h4></div>
+    </div>
+    <div class="pre-grid" style="margin-top:18px">
+      <div class="pre-card">
+        <div class="k-i">底层实现</div>
+        <p><b>澄清 Agent prompt 约束</b> —— 定义 AI 应该问什么类型的问题，怎么梳理不确定信息</p>
+        <p style="margin-top:8px"><b>业务知识库配合</b> —— 让 AI 了解大麦 B 端业务背景，才能问出有价值的问题</p>
+        <p style="margin-top:8px"><b>结构化选项设计</b> —— 不是开放式问答，而是前置选项点击，降低用户回答成本</p>
+      </div>
+      <div class="pre-side">
+        <div class="pre-card">
+          <div class="k-i">典型澄清场景</div>
+          <p><b>页面类型</b> —— 是列表页、表单页，还是详情页？</p>
+          <p style="margin-top:6px"><b>数据规模</b> —— 表格大概几列？有没有批量操作？</p>
+          <p style="margin-top:6px"><b>业务状态</b> —— 有哪些状态流转？对应什么操作？</p>
+          <p style="margin-top:6px"><b>交互要求</b> —— 需要内联编辑吗？有没有权限控制？</p>
+        </div>
+        <div class="pre-card hot">
+          <div class="k-i">效果</div>
+          <p>澄清完毕后，AI 拿到的是<b>明确无歧义的设计 spec</b> —— 生成准确率大幅提升，减少「AI 没理解我的意思」的返工。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k2gap" data-title="两类信息缺口" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 2 · 需求澄清</div>
+    <h2 class="t">AI 动手设计之前，需求理解这个环节如何明确化、可控化、可追溯？</h2>
+    <p class="sub">AI 无法像人类设计师那样靠上下文经验和随时追问 PM 来弥补需求缺口。我们区分出两类性质完全不同的信息缺口，并为每类缺口设计了不同的解法。</p>
+    <div class="analogy" style="margin-top:22px;max-width:none">
+      <div class="ana">
+        <div class="lab">上下文缺口</div>
+        <h4>客观存在，但 AI 不知道</h4>
+        <p>平台现状、历史决策、通用规则。</p>
+        <div class="sol">→ 用知识库注入解决</div>
+      </div>
+      <div class="ana">
+        <div class="lab">规格缺口</div>
+        <h4>文档没写清，需要人来补</h4>
+        <p>需求文档没写清楚的东西，只有提需求的人知道。</p>
+        <div class="sol">→ 用澄清对话解决</div>
+      </div>
+    </div>
+    <p class="quote a">关键判断：不要把上下文缺口丢给澄清对话。如果 Agent 反复问设计师「这个页面长什么样」——这是知识库没建好，而不是澄清姿势错了。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k2flow" data-title="完整交互流程" data-time="2 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 2 · 需求澄清</div>
+    <h2 class="t">完整交互流程</h2>
+    <p class="sub">严格按顺序执行，不允许跳过 Step 2 直接提问，不允许无脑套通用模板</p>
+    <div class="two-w" style="margin-top:16px;gap:16px">
+      <div class="fsteps">
+        <div class="fstep">
+          <div class="hd"><span class="sn">Step 0</span><h4>用户提交<i>遵守规范</i></h4></div>
+          <p>只上传 PRD，不做多余操作。可选附带相关页面截图（不强制）。大部分信息 Agent 自己从文档提取。</p>
+        </div>
+        <div class="fstep">
+          <div class="hd"><span class="sn">Step 1</span><h4>Agent 读取理解<i>自动解析</i></h4></div>
+          <p>自动提取：涉及模块 / 需求类型 / 涉及角色 / 涉及端 / 是否跨页。结合知识库形成初步理解。推断不出的 → 进入澄清环节。</p>
+        </div>
+        <div class="fstep">
+          <div class="hd"><span class="sn">Step 2</span><h4>需求理解摘要<i>共同确认</i></h4></div>
+          <p>输出结构化摘要：目标 / 模块页面 / 核心交互流程 / 角色。明确标注「我目前不确定的地方」。用户先纠错，再回答问题。</p>
+        </div>
+        <div class="fstep">
+          <div class="hd"><span class="sn">Step 3</span><h4>澄清问题清单<i>优先级分级</i></h4></div>
+          <p>关键问题：影响核心设计方案，必答。重要问题：影响交互细节，建议答。次要问题：给默认假设，错了再纠正。其它补充：说明需要什么、为什么需要。</p>
+        </div>
+        <div class="fstep">
+          <div class="hd"><span class="sn">Step 4</span><h4>吸收回答 · 判断追问<i>≤ 2 轮</i></h4></div>
+          <p>把新信息纳入需求理解。仍有关键缺失 → 进入第二轮追问。信息已足够 → 直接输出确认书。</p>
+        </div>
+      </div>
+      <div class="fsteps">
+        <div class="fstep">
+          <div class="hd"><span class="sn">Step 5</span><h4>需求理解确认书<i>结构化交付</i></h4></div>
+          <p>完整 10 项：概述 / 范围 / 角色权限 / 功能点 / 交互流程 / 业务规则 / 异常边界 / 设计参考 / 待确认项 / 知识库引用。「本次不包含」必填，避免范围蔓延。</p>
+        </div>
+        <div class="fstep">
+          <div class="hd"><span class="sn">Step 6</span><h4>自动沉淀建议<i>知识增量</i></h4></div>
+          <p>列出本次澄清产生的新业务知识。标注：类型 / 内容 / 建议归档位置。用户当下提供的截图不入库（只是临时上下文）。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k2ask" data-title="问 vs 不问" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 2 · 需求澄清</div>
+    <h2 class="t">问 vs 不问 · 判断准则</h2>
+    <p class="sub">澄清问题越精准，用户体验越好 —— 宁可错一个小细节，也不要让用户答 20 个问题</p>
+    <div class="analogy" style="margin-top:20px;max-width:none">
+      <div class="ana good">
+        <div class="lab">要问</div>
+        <ul>
+          <li>直接影响页面布局 / 交互结构的信息</li>
+          <li>文档有歧义或矛盾的地方</li>
+          <li>有多个合理方案需要用户选择</li>
+        </ul>
+      </div>
+      <div class="ana bad">
+        <div class="lab">不要问</div>
+        <ul>
+          <li>能从知识库推断的内容（知识库该补的不要给用户）</li>
+          <li>纯视觉细节（颜色 / 字号 / 间距由规范决定）</li>
+          <li>技术实现细节</li>
+        </ul>
+      </div>
+    </div>
+    <p class="quote a">黄金法则：如果一个问题的答案不会改变设计方案的核心结构，就不要问。</p>
+    <div class="shot">
+      <div class="k-i">只在这 3 种情况索要截图</div>
+      <ol>
+        <li>涉及现有页面，但 Agent 不确定具体长什么样</li>
+        <li>改造范围需要视觉确认</li>
+        <li>用户描述的「现有状态」有歧义</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k2road" data-title="落地路线图" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 2 · 需求澄清</div>
+    <h2 class="t">落地路线图</h2>
+    <p class="sub">Prompt + 知识库先独立验证，稳定后再投工程 —— 避免在未验证假设上构建</p>
+    <div class="rlayers">
+      <div class="rrow"><div class="lv num">01</div><div><h4>知识库冷启动</h4><p>完成「00-平台整体」4 份文档：平台结构 / 业务背景 / 术语表 / 通用规则。选定 3 个高频核心模块，完成模块说明 + 重点页面文字描述。可选放 1–2 张稳定页面截图作视觉锚点。</p></div><span class="tag">WEEK 1</span></div>
+      <div class="rrow"><div class="lv num">02</div><div><h4>单个小项目独立验证</h4><p>零代码验证，完全不依赖工程发布周期。知识库上传为 Project Knowledge + 粘贴 System Prompt。用 3–5 份真实 PRD 跑测，邀请 2–3 位设计师试用。验收：澄清后质量优于直接生成；追问 ≤ 2 轮；设计师反馈「问到点上」。</p></div><span class="tag">WEEK 2</span></div>
+      <div class="rrow"><div class="lv num">03</div><div><h4>集成到 P2D 平台</h4><p>Prompt + 知识库稳定后再投工程。后端 API：输入 PRD + 对话历史，输出结构化 Agent 响应。前端：渲染问题卡片 / 截图上传入口 / 确认书编辑。</p></div><span class="tag">WEEK 3–4</span></div>
+      <div class="rrow"><div class="lv num">04</div><div><h4>持续迭代</h4><p>澄清沉淀 review。收集「被大改」案例，反向看澄清是否遗漏。知识库随业务规则变更同步更新；纯视觉变更不需要更新。</p></div><span class="tag">长期</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k3over" data-title="输出协议设计" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 3 · 输出协议</div>
+    <h2 class="t">输出协议设计</h2>
+    <p class="sub">AI 输出什么？用什么格式？怎么解析？这三个问题必须事先想清楚</p>
+    <div class="two-w" style="margin-top:18px;align-items:stretch">
+      <div class="kcard" style="margin:0">
+        <div class="k-i">8 字段结构化 JSON 输出合约</div>
+        <div class="code" style="font-size:12.5px;margin-top:10px"><span class="c">// AI 必须按这个吐</span><br>
+{<br>
+&nbsp;&nbsp;<span class="k">thinking</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// 推理过程（思维链）</span><br>
+&nbsp;&nbsp;<span class="k">summary</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// 本次生成摘要</span><br>
+&nbsp;&nbsp;<span class="k">selected_components</span>, <span class="c">// 选用组件清单</span><br>
+&nbsp;&nbsp;<span class="k">render_mode</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// "json" | "code"</span><br>
+&nbsp;&nbsp;<span class="k">code</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// JSX（code 模式）</span><br>
+&nbsp;&nbsp;<span class="k">spec</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// json 渲染描述对象</span><br>
+&nbsp;&nbsp;<span class="k">annotations</span>,&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// Inspect 标注数据</span><br>
+&nbsp;&nbsp;<span class="k">pages</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// 多页面路由信息</span><br>
+}
+        </div>
+      </div>
+      <div class="pre-side">
+        <div class="pre-card">
+          <div class="k-i">3 层兜底解析器</div>
+          <p><b>第 1 层</b>　严格 JSON.parse() —— 最快路径，绝大多数情况</p>
+          <p style="margin-top:8px"><b>第 2 层</b>　字段逐一正则提取 —— 应对 AI 输出格式轻微偏差</p>
+          <p style="margin-top:8px"><b>第 3 层</b>　代码块兜底 —— 从 Markdown 代码块中提取可用内容</p>
+        </div>
+        <div class="pre-card hot">
+          <p>AI 的输出永远不是 100% 规则的 —— 解析器的<span class="al-link" data-cap="robust" tabindex="0" role="button">鲁棒性</span>决定了系统的稳定性。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k3why" data-title="输出是给机器解析的" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 3 · 输出协议</div>
+    <h2 class="t">AI 的输出不是给人看的文本，而是要被机器精确解析、实时渲染为真实 UI</h2>
+    <p class="sub">这意味着输出格式必须严格可控——既要约束 AI「按什么结构写」，又要在 AI 输出偏差时有兜底解析能力。输出协议的设计质量直接决定了平台的可靠性和用户体验。</p>
+    <div class="analogy" style="margin-top:22px;max-width:none">
+      <div class="ana bad">
+        <div class="lab">✗ 自由文本 / Markdown</div>
+        <ul>
+          <li>无法直接渲染为可交互 UI</li>
+          <li>格式不稳定，下游解析成本极高</li>
+          <li>无法携带结构化元信息（标注、路由）</li>
+        </ul>
+      </div>
+      <div class="ana good">
+        <div class="lab">✓ 结构化 JSON 合约</div>
+        <ul>
+          <li>字段固定，前端可直接 parse 并渲染</li>
+          <li>thinking / spec / annotations 关注点分离</li>
+          <li>支持多渲染模式在同一协议内切换</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k3fields" data-title="8 字段输出合约" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 3 · 输出协议</div>
+    <h2 class="t">8 字段输出合约</h2>
+    <p class="sub">AI 的每一次输出都必须严格遵循这 8 个顶层字段——前端按字段分流处理</p>
+    <div class="flds">
+      <div class="fld"><code>thinking</code><div><h4>推理过程</h4><p>Chain-of-Thought 思维链——强制 AI 先分析场景再动手，提升输出质量</p></div></div>
+      <div class="fld"><code>summary</code><div><h4>生成摘要</h4><p>本次生成的简要说明，前端直接展示为对话气泡，设计师一目了然</p></div></div>
+      <div class="fld"><code>selected_components</code><div><h4>选用组件</h4><p>AI 本次选用的大麦 B 端组件清单，供组件映射校验与追踪</p></div></div>
+      <div class="fld"><code>render_mode</code><div><h4>渲染模式</h4><p>"json" 或 "code" —— 决定下游走 JSON Spec 渲染引擎还是 React 代码沙箱</p></div></div>
+      <div class="fld"><code>code</code><div><h4>JSX 代码</h4><p>code 模式时携带完整 React 组件代码，所有组件已全局注入无需 import</p></div></div>
+      <div class="fld"><code>spec</code><div><h4>JSON 描述对象</h4><p>json 模式时携带扁平化 UI 描述（root + elements map），可被 JSON 渲染引擎解析为真实 UI</p></div></div>
+      <div class="fld"><code>annotations</code><div><h4>交互标注</h4><p>关键交互节点的结构化描述，供 Inspect 模式高亮叠加展示</p></div></div>
+      <div class="fld"><code>pages</code><div><h4>多页面路由</h4><p>多页面场景下的路由信息数组，每项含 title + code/spec</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k3parse" data-title="3 层兜底解析器" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 3 · 输出协议</div>
+    <h2 class="t">3 层兜底解析器</h2>
+    <p class="sub">AI 的输出永远不是 100% 规则的——即使 Prompt 写得再严格，实际输出也可能有转义错误、尾部逗号、markdown 包裹等偏差。解析器必须逐层兜底，确保平台稳定性。</p>
+    <div class="fsteps" style="margin-top:16px">
+      <div class="fstep on">
+        <div class="hd"><span class="sn">第 1 层</span><h4>严格 JSON.parse</h4></div>
+        <p>最快路径——标准 JSON 解析。绝大多数正常输出在这一层完成。</p>
+      </div>
+      <div class="fstep">
+        <div class="hd"><span class="sn">第 2 层</span><h4>逐字段正则提取</h4></div>
+        <p>逐一用 extractTopLevelStringField 扫描顶层字段，处理转义偏差、尾部多余逗号等。</p>
+      </div>
+      <div class="fstep">
+        <div class="hd"><span class="sn">第 3 层</span><h4>代码块兜底</h4></div>
+        <p>从 Markdown tsx 代码块中提取可执行内容——最后兜底。</p>
+      </div>
+    </div>
+    <p class="quote a">设计原则：宁可降级解析，也不让用户看到报错空白。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k3ann" data-title="标注协议与替代路径" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 3 · 输出协议</div>
+    <h2 class="t">交互标注协议</h2>
+    <p class="sub">AI 不仅输出 UI，还输出交互说明——通过 annotations 字段 + data-damai-tour 属性实现 Inspect 模式叠加</p>
+    <div class="two" style="margin-top:16px;gap:16px">
+      <div class="kcard">
+        <div class="k-i">工作机制</div>
+        <p>AI 在关键元素 props 中标记 <b>data-damai-tour="search-trigger"</b></p>
+        <p style="margin-top:8px">annotations 数组中以相同 id 携带标题 + 交互描述</p>
+        <p style="margin-top:8px">前端 Inspect 模式根据 id 匹配 DOM 元素，高亮并展示 tooltip</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">设计价值</div>
+        <p>设计师交付给开发时，交互说明直接附在 UI 上</p>
+        <p style="margin-top:8px">替代传统的「交互文档 + 标注截图」模式</p>
+        <p style="margin-top:8px">AI 在设计时就思考交互逻辑，而非事后补标注</p>
+      </div>
+    </div>
+    <h3 class="sec">澄清作为替代输出路径</h3>
+    <p class="sub">当需求模糊时，AI 不会硬着头皮生成——而是输出结构化澄清问题，等用户回答后再继续。这也是输出协议的一部分。</p>
+    <div class="kcard" style="margin-top:12px">
+      <div class="k-i">两种触发机制</div>
+      <p><b>机制 1 · JSON 字段输出</b>　AI 直接输出 clarification_questions 字段（不含 code/spec），前端渲染为问题卡片 UI</p>
+      <p style="margin-top:8px"><b>机制 2 · Tool Use 中断</b>　AI 调用 ask_user_question 工具暂停生成流，前端拦截工具调用、收集答案后注入 tool_result 继续生成</p>
+    </div>
+    <p class="quote a">核心理念：输出协议不是一个固定格式，而是一棵决策树——根据需求清晰度动态选择输出路径。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k4over" data-title="多渲染引擎" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 4 · 渲染引擎</div>
+    <h2 class="t">多渲染引擎</h2>
+    <p class="sub">一套系统不够用——不同场景需要不同的渲染策略</p>
+    <div class="analogy" style="margin-top:20px;max-width:none">
+      <div class="ana">
+        <div class="lab">JSON SCHEMA 模式</div>
+        <h4>结构化 · 精确</h4>
+        <ul>
+          <li>Zod Schema 验证，类型安全</li>
+          <li>30+ 大麦 B 端组件直接映射</li>
+          <li>列表页 / 表单页 / 详情页等标准页面</li>
+          <li>像素级还原大麦规范，零漂移</li>
+        </ul>
+        <p class="foot">适合需求明确的标准 B 端页面</p>
+      </div>
+      <div class="ana">
+        <div class="lab">JSX CODE 模式</div>
+        <h4>灵活 · 探索</h4>
+        <ul>
+          <li>react-runner 本地执行 JSX</li>
+          <li>自由组合任意组件和逻辑</li>
+          <li>复杂交互 / 特殊布局 / 探索性需求</li>
+          <li>灵活度最高，但需要规范约束</li>
+        </ul>
+        <p class="foot">适合复杂交互或需要快速探索的场景</p>
+      </div>
+    </div>
+    <p class="quote a">AI 自行判断用哪种模式——通过 render_mode 字段决策，无需用户手动切换。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k4dual" data-title="一套引擎不够用" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 4 · 渲染引擎</div>
+    <h2 class="t">一套渲染引擎不够用——不同场景需要不同的渲染策略与预览方式</h2>
+    <p class="sub">B 端设计场景的复杂度由浅到深：从高度标准化的列表 / 表单页，到自由探索性的复杂交互页。单一渲染方案要么牺牲灵活性，要么牺牲规范一致性。因此：双引擎并行 + AI 自主选择 + 适当降级。</p>
+    <h3 class="sec">双渲染引擎对比</h3>
+    <div class="analogy" style="margin-top:12px;max-width:none">
+      <div class="ana">
+        <div class="lab">JSON SCHEMA 模式</div>
+        <h4>结构化 · 精确 · 零漂移</h4>
+        <p>基于 @json-render/react + @ali/maiui，通过 JSON Spec 描述页面结构。</p>
+        <ul>
+          <li>Zod Schema 校验，类型安全</li>
+          <li>35+ 大麦 B 端标准组件直接映射</li>
+          <li>列表页 / 表单页 / 详情页 — 标准 B 端页面</li>
+          <li>像素级还原设计规范，零视觉漂移</li>
+          <li>组件间状态由 StateProvider 统一驱动</li>
+        </ul>
+        <p class="foot">适合：需求明确的标准 B 端页面</p>
+      </div>
+      <div class="ana">
+        <div class="lab">JSX CODE 模式</div>
+        <h4>灵活 · 自由 · 探索性</h4>
+        <p>基于 react-runner，在浏览器端实时编译执行 LLM 生成的 JSX。</p>
+        <ul>
+          <li>react-runner + Babel 浏览器端即时编译</li>
+          <li>自由组合任意组件 + 自定义逻辑</li>
+          <li>复杂交互 / 特殊布局 / 探索性需求</li>
+          <li>支持多页面导航（platformNavigate 注入）</li>
+          <li>import 自动剥离 → scope 注入（零 CDN 依赖）</li>
+        </ul>
+        <p class="foot">适合：复杂交互 / 非标页面 / 快速探索</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k4fall" data-title="优雅降级策略" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 4 · 渲染引擎</div>
+    <h2 class="t">优雅降级策略</h2>
+    <p class="sub">容错是第一优先级 —— 用户不应该因为 AI 选错模式而看到白屏</p>
+    <div class="fsteps" style="margin-top:16px">
+      <div class="fstep">
+        <div class="hd"><span class="sn">01</span><h4>JSON 渲染尝试</h4></div>
+        <p>@json-render/react 解析 spec，ErrorBoundary 捕获异常</p>
+      </div>
+      <div class="fstep">
+        <div class="hd"><span class="sn">02</span><h4>错误检测</h4></div>
+        <p>spec 格式无效 / 组件渲染 throw → 触发 onFallback 回调</p>
+      </div>
+      <div class="fstep">
+        <div class="hd"><span class="sn">03</span><h4>自动降级</h4></div>
+        <p>切换 renderMode 为 code，由 react-runner 接管渲染</p>
+      </div>
+      <div class="fstep on">
+        <div class="hd"><span class="sn">04</span><h4>用户无感</h4></div>
+        <p>降级过程自动完成，用户看到的始终是可用的渲染结果</p>
+      </div>
+    </div>
+    <p class="quote a">设计铁律：无论 AI 输出什么，用户看到的永远是一个可交互的渲染结果，而不是报错页。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k4mode" data-title="三种交互模式" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 4 · 渲染引擎</div>
+    <h2 class="t">三种交互模式</h2>
+    <p class="sub">不同角色、不同阶段，需要不同的信息密度——设计师看交互标注，开发者看 CSS 属性</p>
+    <div class="fsteps" style="margin-top:18px">
+      <div class="fstep">
+        <div class="hd"><span class="sn">PREVIEW</span><h4>预览模式</h4></div>
+        <p>纯净查看，所见即所得</p>
+      </div>
+      <div class="fstep">
+        <div class="hd"><span class="sn">INSPECT</span><h4>交互标注模式</h4></div>
+        <p>InteractionOverlay 叠加标注气泡 + 侧边标注面板，查看 AI 输出的交互说明</p>
+      </div>
+      <div class="fstep">
+        <div class="hd"><span class="sn">DEV</span><h4>开发者模式</h4></div>
+        <p>类 Figma Dev Mode，点击任意元素查看 computed CSS + design token 映射</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k5over" data-title="多轮迭代编辑" data-time="2 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 5 · 迭代编辑</div>
+    <h2 class="t">多轮迭代编辑</h2>
+    <p class="sub">让 AI 记得上次生成了什么——不是每次都从零开始</p>
+    <div class="two-w" style="margin-top:18px;align-items:stretch">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="ana bad" style="flex:1">
+          <div class="lab">没有上下文注入时</div>
+          <h4>「把按钮颜色改成蓝色」</h4>
+          <p>AI 重新生成了一个完全不同的页面。原因：AI 不知道「当前画布」是什么。</p>
+        </div>
+        <div class="ana good" style="flex:1">
+          <div class="lab">注入当前画布上下文后</div>
+          <p>每次请求时，自动将当前画布代码注入到用户消息中。AI 看到完整上下文，精准修改对应部分，保留其余所有内容不变。</p>
+        </div>
+      </div>
+      <div class="kcard" style="margin:0">
+        <div class="k-i">上下文注入逻辑（简化）</div>
+        <div class="code" style="font-size:12.5px;margin-top:10px"><span class="k">function</span> <span class="s">buildIterativeMessage</span>(<span class="p">userRequest</span>, <span class="p">currentCanvasCode</span>) {<br>
+&nbsp;&nbsp;<span class="k">return</span> <span class="s">`</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;当前画布代码（请在此基础上修改）:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">${currentCanvasCode}</span><br><br>
+&nbsp;&nbsp;&nbsp;&nbsp;用户请求: <span class="p">${userRequest}</span><br>
+&nbsp;&nbsp;<span class="s">`</span>;<br>
+}
+        </div>
+        <p style="margin-top:14px;font-size:13px;color:var(--tx-2);line-height:1.65">上下文感知，是让 AI 从「生成工具」升级为「协作伙伴」的关键一步。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k5why" data-title="从一次性生成到协作伙伴" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 5 · 迭代编辑</div>
+    <h2 class="t">让 AI 从「一次性生成」升级为能记住上下文、能持续协作的设计伙伴</h2>
+    <p class="sub">单轮生成只能完成 Demo；真正可用的设计需要多轮打磨。这要求平台在「上下文注入」「对话管理」「历史检索」三个维度同时做好，才能让 AI 像人类设计师一样持续迭代。</p>
+    <div class="grid3 mt">
+      <div class="kcard">
+        <div class="k-i">无上下文</div>
+        <h4>每次从零开始</h4>
+        <p>用户说「把按钮改成蓝色」，AI 重新生成了一个完全不同的页面——因为它根本不知道当前画布长什么样。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">对话历史丢失</div>
+        <h4>无法持续协作</h4>
+        <p>刷新页面或切换任务后，之前的设计对话全部消失，用户需要从头描述需求。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">多页面缺乏组织</div>
+        <h4>检索和隔离做不到</h4>
+        <p>一个产品有数十个页面，每个页面有多轮设计迭代，缺乏有效的组织和检索手段。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k5data" data-title="数据架构三层模型" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 5 · 迭代编辑</div>
+    <h2 class="t">数据架构 · 三层模型</h2>
+    <p class="sub">Project → Page → Conversation。每一层有明确的职责边界，保证多页面、多会话互不干扰。</p>
+    <div class="fsteps" style="margin-top:16px">
+      <div class="fstep">
+        <div class="hd"><span class="sn">Project</span><h4>项目</h4></div>
+        <p>一个产品 / 业务域，如「大麦商家端」。</p>
+        <p style="margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--a)">id · name · description · status · isFavorited</p>
+      </div>
+      <div class="fstep">
+        <div class="hd"><span class="sn">Page</span><h4>页面</h4></div>
+        <p>项目下的某个页面，如「演出管理列表」。</p>
+        <p style="margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--a)">id · projectId · name · sortOrder</p>
+      </div>
+      <div class="fstep">
+        <div class="hd"><span class="sn">Conversation</span><h4>对话</h4></div>
+        <p>页面下的独立设计会话，包含完整的消息历史和画布状态。</p>
+        <p style="margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--a)">messages[] · currentCode · currentSpec · currentRenderMode · currentAnnotations</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k5inject" data-title="上下文静默注入" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 5 · 迭代编辑</div>
+    <h2 class="t">核心机制 · 上下文静默注入</h2>
+    <p class="sub">用户只输入修改指令，平台在幕后将当前画布代码包裹注入——AI 看到完整上下文，精准修改；用户无感知。</p>
+    <div class="two-w" style="margin-top:16px;align-items:stretch">
+      <div class="kcard" style="margin:0">
+        <div class="k-i">buildIterativeUserMessage()</div>
+        <div class="code" style="font-size:12px;margin-top:8px"><span class="k">function</span> <span class="s">buildIterativeUserMessage</span>(<span class="p">userMsg</span>, <span class="p">currentCode</span>) {<br>
+&nbsp;&nbsp;<span class="k">return</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">`【当前画布代码 - 请基于此代码进行局部修改】`</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="s">`以下是完整 React 代码，执行修改指令后输出全量代码：`</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="s">`tsx\n${currentCode}`</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="s">`【本次修改指令】\n${userMsg}`</span><br>
+}
+        </div>
+      </div>
+      <div class="fsteps">
+        <div class="fstep">
+          <div class="hd"><span class="sn">场景 1</span><h4>画布是 Code 模式，且已有渲染代码</h4></div>
+          <p>→ 将当前完整代码包裹注入到用户消息中。原因：AI 看到完整上下文，可精准局部修改。</p>
+        </div>
+        <div class="fstep">
+          <div class="hd"><span class="sn">场景 2</span><h4>画布是 JSON Spec 模式</h4></div>
+          <p>→ 不注入代码上下文。原因：避免 LLM 被代码「锁定」到 code 模式，保持 render_mode 灵活选择。</p>
+        </div>
+        <div class="fstep">
+          <div class="hd"><span class="sn">场景 3</span><h4>首次对话（画布为空）</h4></div>
+          <p>→ 不注入，正常生成。原因：无历史状态可注入。</p>
+        </div>
+      </div>
+    </div>
+    <p class="quote a">关键洞察：模式保护比上下文完整性优先级更高——注入错误上下文不如不注入。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k5hist" data-title="对话历史管理策略" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 5 · 迭代编辑</div>
+    <h2 class="t">对话历史管理策略</h2>
+    <p class="sub">四个维度保证对话持久、干净、可检索、可恢复</p>
+    <div class="grid4 mt">
+      <div class="kcard">
+        <div class="k-i">消息窗口截断</div>
+        <h4>最近 16 条</h4>
+        <p>保留最近 16 条消息传入 LLM，兼顾上下文连贯性与 Token 预算。</p>
+        <p style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--a)">conversationHistory.slice(-16)</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">消息清洗入库</div>
+        <h4>只留干净记录</h4>
+        <p>持久化前移除 isLoading、__tokenCount 等临时字段，只保留干净的对话记录。</p>
+        <p style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--a)">sanitizeMessages() 过滤 + 剥离</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">自动命名</div>
+        <h4>取自首条 24 字</h4>
+        <p>对话名称自动取自首条用户消息前 24 字，支持手动重命名。</p>
+        <p style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--a)">titleFromMessage(firstUserMsg)</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">历史面板检索</div>
+        <h4>按名搜索、一键恢复</h4>
+        <p>右侧抽屉面板支持按名称搜索、激活旧会话恢复完整状态。</p>
+        <p style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--a)">HistoryPanel + activateConversation()</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-k5dec" data-title="关键设计决策 Why" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">KEY 5 · 迭代编辑</div>
+    <h2 class="t">关键设计决策 · Why</h2>
+    <p class="sub">每个选择背后都有明确的取舍逻辑</p>
+    <div class="rlayers">
+      <div class="rrow"><div class="lv num">01</div><div><h4>为什么按页面隔离对话？</h4><p>每个页面是独立的设计上下文；混合多页面对话会导致 AI 输出混乱。</p></div><span class="tag">隔离性</span></div>
+      <div class="rrow"><div class="lv num">02</div><div><h4>开发阶段为什么用 localStorage？</h4><p>本地优先 → 零网络延迟，快速验证；生产环境已迁移到服务端 MySQL。</p></div><span class="tag">演进加速</span></div>
+      <div class="rrow"><div class="lv num">03</div><div><h4>为什么只在 Code 模式注入当前代码？</h4><p>JSON Spec 模式下注入代码会让 LLM「看到 JSX」而强行切到 code 模式输出，破坏 render_mode 决策逻辑。</p></div><span class="tag">模式保护</span></div>
+      <div class="rrow"><div class="lv num">04</div><div><h4>为什么截断 16 条而不是全量传入？</h4><p>Token 窗口有限；知识库 + System Prompt 已占据相当比例，留给对话历史的预算有限。</p></div><span class="tag">TOKEN 预算</span></div>
+      <div class="rrow"><div class="lv num">05</div><div><h4>为什么用「静默注入」而不是让用户看到包裹后的消息？</h4><p>用户只关心自己的修改指令；展示技术包装会干扰阅读，也无法编辑。</p></div><span class="tag">用户体验</span></div>
+    </div>
+    <p class="quote a">总结：多轮迭代的本质是「状态持续性」——画布状态 + 对话历史 + 渲染模式，三者同步保存、同步恢复。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-pano" data-title="系统架构全景" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">系统全景</div>
+    <h2 class="t">系统架构全景</h2>
+    <p class="sub">用户输入 —— 生成设计 —— 渲染预览：6 大核心阶段</p>
+    <div class="rail six" style="margin-top:16px">
+      <div class="rs"><div class="n">01</div><h4>用户输入</h4><p>首页对话框 / 文件上传。支持 PRD、文件、纯文本。账号登录认证。</p><span class="tag">入口层</span></div>
+      <div class="rs"><div class="n">02</div><h4>需求澄清</h4><p>AI 自动判断是否触发。结构化问题交互。回答后继续完整生成。</p><span class="tag">智能触发</span></div>
+      <div class="rs"><div class="n">03</div><h4>知识组装</h4><p>设计知识文件按序注入。管理后台可维护。→ 完整 System Prompt。</p><span class="tag">知识层</span></div>
+      <div class="rs"><div class="n">04</div><h4>LLM 推理</h4><p>思维链。流式 SSE 实时传输。Anthropic / OpenAI 双协议。</p><span class="tag">推理层</span></div>
+      <div class="rs"><div class="n">05</div><h4>协议解析</h4><p>3 层鲁棒 JSON 解析。多字段结构化提取。处理截断 / 格式异常。</p><span class="tag">解析层</span></div>
+      <div class="rs"><div class="n">06</div><h4>渲染输出</h4><p>JSON Schema 精确模式。JSX Code 灵活模式。交互标注 + Dev 预览。</p><span class="tag">渲染层</span></div>
+    </div>
+    <div class="grid4" style="margin-top:14px">
+      <div class="kcard" style="padding:14px 16px">
+        <div class="k-i">设计资产管理</div>
+        <p>注入面板：知识文件管理 + 排序。在线编辑 + 实时预览。对比不同 Prompt 效果。</p>
+      </div>
+      <div class="kcard" style="padding:14px 16px">
+        <div class="k-i">Zustand 状态持久化</div>
+        <p>三层数据：项目 / 页面 / 消息。MySQL 跨会话持久化。历史对话随时一键恢复。</p>
+      </div>
+      <div class="kcard" style="padding:14px 16px">
+        <div class="k-i">服务端 Node.js</div>
+        <p>用户登录鉴权。LLM API 网关。数据库服务。生产部署。</p>
+      </div>
+      <div class="kcard" style="padding:14px 16px">
+        <div class="k-i">双渲染引擎路由</div>
+        <p>JSON Schema → 组件注册表。JSX Code → 动态运行时。render_mode 自动路由。</p>
+      </div>
+    </div>
+    <p class="quote a">各模块边界清晰、相互解耦 —— 需求澄清、知识注入、推理引擎、渲染器均可独立迭代升级。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-stack" data-title="技术栈全景" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">系统全景</div>
+    <h2 class="t">技术栈全景</h2>
+    <p class="sub">4 层架构，每一层都有具体的技术选型和设计考量</p>
+    <div class="grid4 cols4 mt">
+      <div class="kcard">
+        <div class="k-i">前端工程层</div>
+        <div class="keys tight"><span>React 19 + TS 5.9</span><span>Vite 6</span><span>Tailwind CSS 4</span><span>Zustand 5</span><span>Ant Design 5 / damai-ui</span><span>ECharts 6</span></div>
+        <p style="margin-top:12px">React 19 + Vite 6 极速开发。Zustand 管理项目 / 页面 / 对话三层数据。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">LLM 推理层</div>
+        <div class="keys tight"><span>Anthropic Messages</span><span>OpenAI 镜像协议</span><span>流式 SSE</span><span>知识文件动态注入</span><span>PDF / Word 解析</span><span>结构化澄清</span></div>
+        <p style="margin-top:12px">双协议原生支持、流式输出 + 多格式文件理解，智能触发澄清后再生成。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">渲染引擎层</div>
+        <div class="keys tight"><span>@json-render/react</span><span>react-runner</span><span>Zod 4</span><span>render_mode 路由</span><span>damai-ui</span><span>Dev 预览</span></div>
+        <p style="margin-top:12px">JSON Schema 精确映射 B 端标准组件，JSX Code 灵活执行任意设计，双模式自动路由。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">服务端 &amp; 部署</div>
+        <div class="keys tight"><span>Express 4</span><span>BUC SSO</span><span>LLM 反向代理</span><span>MySQL</span><span>Docker + AONE</span><span>签名 Cookie</span></div>
+        <p style="margin-top:12px">Express 处理鉴权与代理，MySQL 持久化项目 / 意图 / 对话，Docker 一键部署。</p>
+      </div>
+    </div>
+    <p class="quote a">每一层的技术选型都不是随机的 —— 背后有对「这一层的核心问题是什么」的清晰判断。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-pit1" data-title="坑 01 假 JSON" data-time="1 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">坑 01</div>
+    <h2 class="t">AI 输出的「JSON」经常是假 JSON</h2>
+    <div class="analogy" style="margin-top:22px;max-width:none">
+      <div class="ana bad">
+        <div class="lab">现象</div>
+        <h4>你让它返回 JSON，它返回的是：</h4>
+        <ul>
+          <li>Markdown 代码块包裹的 JSON</li>
+          <li>含有注释的 JSON（// 这里是…）</li>
+          <li>多余的尾部逗号</li>
+          <li>截断不完整的 JSON（token 超限）</li>
+          <li>在 JSON 前后附带解释文字</li>
+        </ul>
+        <p class="foot">直接 JSON.parse() 会崩溃 —— 但你又不能不用 JSON</p>
+      </div>
+      <div class="ana good">
+        <div class="lab">解法 · 3 层防护解析器</div>
+        <ul>
+          <li>严格 JSON.parse —— 最理想情况，直接解析</li>
+          <li>字段逐一正则提取 —— 应对轻微格式偏差</li>
+          <li>代码块兜底提取 —— 从代码块中拯救有效内容</li>
+        </ul>
+        <p class="foot">教训：不要假设 AI 会完美遵守格式约定 —— 系统必须能优雅降级</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-pit2" data-title="坑 02 未验证的假设" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">坑 02</div>
+    <h2 class="t">在未验证的假设上继续构建</h2>
+    <p class="sub">最贵的 bug 往往来自最早的假设</p>
+    <div class="analogy" style="margin-top:20px;max-width:none">
+      <div class="ana bad">
+        <div class="lab">真实发生过的错误假设</div>
+        <ul>
+          <li>「AI 一定会按协议格式输出」</li>
+          <li>「组件名 AI 一定能认识」</li>
+          <li>「知识文件注入了就等于 AI 看懂了」</li>
+          <li>「多轮对话时上下文自动保留」</li>
+        </ul>
+      </div>
+      <div class="ana good">
+        <div class="lab">每个假设都必须用真实数据验证</div>
+        <ul>
+          <li>写完知识注入之后：发一条真实请求，看 AI 输出是否符合要求</li>
+          <li>写完解析器之后：拿几十条真实 LLM 回复跑一遍，验证解析逻辑</li>
+          <li>加了一个新组件之后：先跑通端到端，再去加下一个</li>
+        </ul>
+        <p class="foot">教训：感觉对 ≠ 验证过 —— 每一个层面都要有明确的验证动作和通过标准</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-pit3" data-title="坑 03 AI 失忆" data-time="1.5 min" data-spk="平台">
+  <div class="slide-in">
+    <div class="kick">坑 03</div>
+    <h2 class="t">对话越来越长，AI 开始「失忆」</h2>
+    <p class="sub">上下文窗口是有限的 —— 当它被塞满，最初的约定会被悄悄遗忘</p>
+    <div class="analogy" style="margin-top:20px;max-width:none">
+      <div class="ana bad">
+        <div class="lab">典型症状</div>
+        <ul>
+          <li>前面说好「用 CSS 变量」，后面开始硬编码色值</li>
+          <li>之前确认过的组件写法，AI 突然换成另一套</li>
+          <li>CLAUDE.md 里的明文规定，在长对话里开始失效</li>
+          <li>反复纠正同一个问题，但 AI 就是「记不住」</li>
+        </ul>
+        <p class="foot">问题不是 AI 变笨了 —— 是上下文里的「规则信号」被稀释了</p>
+      </div>
+      <div class="ana good">
+        <div class="lab">做法 · 3 个习惯</div>
+        <ul>
+          <li>开新对话 —— 一个功能做完了，切断窗口，别在同一个 session 里拖太长</li>
+          <li>把规则写进文件 —— 重要约束不要靠口头说，写进 CLAUDE.md 和 rules，每次对话 AI 会自动读</li>
+          <li>发现偏移，立即追加 —— 一旦违背某条规则，立刻在 prompt 里重申，别忍着往后堆</li>
+        </ul>
+        <p class="foot">核心：AI 的「记忆」来自上下文，不是真正的记忆 —— 规则化，是让它长期稳定执行的唯一可靠方式</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-reuse" data-title="可复用的经验" data-time="2 min" data-spk="方法">
+  <div class="slide-in">
+    <div class="kick">认知一</div>
+    <h2 class="t">可复用的经验</h2>
+    <p class="sub">从这个项目提炼出来 —— 适用于任何 AI Coding 构建 AI Agent 系统的场景</p>
+    <div class="grid2 mt">
+      <div class="kcard">
+        <div class="k-i">01</div>
+        <h4>架构先于代码</h4>
+        <p>先想清楚核心问题是什么、边界在哪里，再让 AI 动手。没有架构思考的 AI Coding，是「更快速地走错路」。把系统拆成相互独立的层，每层有清晰的输入输出边界。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">02</div>
+        <h4>领域知识 = 你的竞争壁垒</h4>
+        <p>AI 是通才，你才是领域专家。你对业务和设计规范理解越深，喂给 AI 的知识质量越高，输出就越强。把知识显式地文档化，是让 AI Coding 长期稳定的唯一方式。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">03</div>
+        <h4>协议设计决定系统稳定性</h4>
+        <p>定义清晰的输出协议（格式、字段、容错），并为不合规输出设计多层兜底解析器。AI 的输出永远不是 100% 可预测的 —— 系统的鲁棒性决定了它能不能在生产环境跑起来。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">04</div>
+        <h4>小步验证，不积累未验证假设</h4>
+        <p>每写完一个模块，立刻用真实数据验证。不要等全部写完再测，假设越早暴露越早修复，成本最低。感觉对 ≠ 验证过，这个区别会在最错误的时机暴露。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">05</div>
+        <h4>规则文件化，而非窗口口头约定</h4>
+        <p>CLAUDE.md + rules 文件是 AI 的「长期记忆」—— 把项目约束、编码规范、禁止行为写进文件，而不是每次在 prompt 里重复说。这是让 AI 跨会话保持一致行为的基础。</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">06</div>
+        <h4>你是决策者，AI 是执行者</h4>
+        <p>关于产品形态、用户体验、优先级的决策，必须人来做。AI 的方案可以参考，但不能盲目采纳。产品设计师的业务判断力 + AI 的执行效率，才是这套模式真正的威力。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-gold" data-title="与 AI 协作的 5 条黄金法则" data-time="2 min" data-spk="方法">
+  <div class="slide-in">
+    <div class="kick">认知二</div>
+    <h2 class="t">与 AI 协作的 5 条黄金法则</h2>
+    <p class="sub">这些规则适用于所有 AI Coding 工具，无论是 Claude Code、Cursor、Copilot 还是扣子编程。</p>
+    <div class="grules">
+      <div class="grule">
+        <h4>01 先想后做<i>Think Before Code</i></h4>
+        <p>需求不确定时，先把假设说清楚，不要默认一个方向。有多种方案时，让 AI 列出选项，你来拍板。</p>
+        <div class="ex"><div class="ok">✓ 「先列出 3 种实现方案，我选一个再开写。」</div><div class="ng">✗ 「帮我实现这个功能。」（它选了一个你不想要的方案）</div></div>
+      </div>
+      <div class="grule">
+        <h4>02 极简主义<i>Keep It Simple</i></h4>
+        <p>只写解决当前问题所需的最少代码。100 行能做完，不要写 1000 行。没要求的抽象和配置，先不要做。</p>
+        <div class="ex"><div class="ok">✓ 「只实现核心流程，错误处理和缓存先不要。」</div><div class="ng">✗ 「帮我搭一套完整、可扩展的系统。」（过度工程化）</div></div>
+      </div>
+      <div class="grule">
+        <h4>03 外科手术式修改<i>Surgical Changes</i></h4>
+        <p>只改该改的。不要「顺手优化」周边代码，保持原有风格。发现无关问题，可以指出，但未经允许不要改。</p>
+        <div class="ex"><div class="ok">✓ 「只改登录函数的校验逻辑，其他一律不动。」</div><div class="ng">✗ 「优化这个文件。」（它把整文件重写了）</div></div>
+      </div>
+      <div class="grule">
+        <h4>04 定义「完成」<i>Define Done</i></h4>
+        <p>动手前先定义验收标准。没有明确终点的任务，AI 要么无限发散，要么过早停住。</p>
+        <div class="ex"><div class="ok">✓ 「完成定义：表单提交后出 toast，跳首页，移动端可用。」</div><div class="ng">✗ 「做完告诉我。」（没有可验证标准）</div></div>
+      </div>
+      <div class="grule">
+        <h4>05 持续验证<i>Verify Incrementally</i></h4>
+        <p>每完成一步就验证，不要假设成功。AI 会很有把握地说「完成了」——但它可能是错的。</p>
+        <div class="ex"><div class="ok">✓ 「每实现一个函数就跑一次测试。」</div><div class="ng">✗ 「全部做完再测。」（错误堆积，难定位）</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-trig" data-title="工具触发的 4 种底层模式" data-time="1.5 min" data-spk="方法">
+  <div class="slide-in">
+    <div class="kick">认知三</div>
+    <h2 class="t">工具触发的 4 种底层模式</h2>
+    <p class="sub">所有 AI Coding 工具的能力激活方式，都可以归纳为这 4 种模式 —— 理解它们，就知道如何最大化工具效能。</p>
+    <div class="grid4 mt">
+      <div class="kcard">
+        <div class="k-i">01</div>
+        <h4>自动预加载</h4>
+        <p>会话启动即生效，无需操作。例：基础规则、环境初始化</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">02</div>
+        <h4>语义触发</h4>
+        <p>自然语言描述即可激活。例：「帮我看看这个页面」→ 浏览器工具</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">03</div>
+        <h4>描述匹配</h4>
+        <p>AI 根据任务自主判断。例：写认证功能 → 安全审查工具</p>
+      </div>
+      <div class="kcard">
+        <div class="k-i">04</div>
+        <h4>手动调用</h4>
+        <p>明确指定使用某个工具。例：需要精确控制时</p>
+      </div>
+    </div>
+    <p class="quote a">核心洞察：任务描述越精确，语义触发和描述匹配越稳定。「写个登录」可能什么都不触发；「实现带 JWT 认证的登录接口」能精准激活安全审查、API 设计等工具。</p>
+  </div>
+</section>
+
+<section class="slide" id="lyj-tlayer" data-title="分层工具架构思维" data-time="1.5 min" data-spk="方法">
+  <div class="slide-in">
+    <div class="kick">认知四</div>
+    <h2 class="t">分层工具架构思维</h2>
+    <p class="sub">无论你用什么 AI Coding 工具组合，都可以按这个 5 层模型来理解和组织它们的能力</p>
+    <div class="rlayers">
+      <div class="rrow"><div class="lv">L0</div><div><h4>行为守卫层</h4><p>全程激活的基础规则，确保 AI 不做危险操作。安全规则、代码风格约束、行为准则。</p></div></div>
+      <div class="rrow"><div class="lv">L1</div><div><h4>生命周期框架层</h4><p>端到端的开发流水线，从规划到发布。规划 → 实现 → 审查 → 发布 → 监控。</p></div></div>
+      <div class="rrow"><div class="lv">L2</div><div><h4>专项工具层</h4><p>按任务类型按需激活的专业能力。浏览器、测试、安全审查、搜索等。</p></div></div>
+      <div class="rrow"><div class="lv">L3</div><div><h4>上下文增强层</h4><p>按任务补充项目知识、文件与外部能力。MCP、知识库、代码索引。</p></div></div>
+      <div class="rrow"><div class="lv">L4</div><div><h4>质量验证层</h4><p>交付前的最终质量关卡。QA 测试 · 性能基准 · 部署后监控。</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-fatal" data-title="3 个致命误区" data-time="2 min" data-spk="方法">
+  <div class="slide-in">
+    <div class="kick">认知五</div>
+    <h2 class="t">3 个致命误区</h2>
+    <p class="sub">这些误区不是「新手问题」—— 即使使用了很久 AI Coding 的人也经常犯</p>
+    <div class="fatals">
+      <div class="fatal">
+        <div class="k-i">01</div>
+        <h4>一次性倾倒所有需求</h4>
+        <p class="bad"><b>误区</b>把几千字需求一次性丢给 AI，期望它「一次性做完」</p>
+        <p class="fix"><b>对策</b>拆解为可验证的小步骤，每步 ≤ 1 个明确目标</p>
+        <p class="tip">信息量 ≠ 有效性。5 条精确指令 &gt; 500 字模糊描述</p>
+      </div>
+      <div class="fatal">
+        <div class="k-i">02</div>
+        <h4>不验证就信任输出</h4>
+        <p class="bad"><b>误区</b>AI 说「已完成」就信了，不跑、不测、不看</p>
+        <p class="fix"><b>对策</b>每步都验证：运行代码、检查输出、确认行为</p>
+        <p class="tip">AI 的「自信」和「正确」是两回事，它永远不会说「我不确定」</p>
+      </div>
+      <div class="fatal">
+        <div class="k-i">03</div>
+        <h4>忽视上下文污染</h4>
+        <p class="bad"><b>误区</b>一个对话里做了太多不同任务，AI 开始「串台」</p>
+        <p class="fix"><b>对策</b>任务切换时开新对话，或明确告知「忘掉之前的，现在做 X」</p>
+        <p class="tip">上下文窗口是 AI 的短期记忆，被无关信息填满就降智</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="lyj-logic" data-title="底层逻辑总结" data-time="1.5 min" data-spk="方法">
+  <div class="slide-in">
+    <div class="kick">底层逻辑</div>
+    <h2 class="t">底层逻辑总结</h2>
+    <p class="sub">记住这些，比盲目学习海量教程都有用</p>
+    <div class="logic">
+      <div class="litem"><div class="n">1</div><p>工具在变，逻辑不变 — 掌握底层原理后，切换任何 AI 工具都能快速适配</p></div>
+      <div class="litem"><div class="n">2</div><p>你的价值不是「会用工具」，而是「知道要 AI 做什么」和「能判断 AI 做得对不对」</p></div>
+      <div class="litem"><div class="n">3</div><p>AI Coding 的本质是：你负责方向和判断，AI 负责速度和执行</p></div>
+    </div>
+    <p class="quote a">真相：AI 时代更需要放大的是判断力。能清楚地定义问题、拆解任务、验证结果的人，无论工具怎么迭代，总能更大受益。</p>
+  </div>
+</section>
+
+<section class="slide" id="s-thanks" data-title="感谢聆听" data-time="0.5 min" data-spk="方法">
+  <div class="glow" style="width:640px;height:480px;background:radial-gradient(circle,rgba(52,224,161,.14),transparent 65%);top:12%;left:18%"></div>
+  <div class="glow" style="width:520px;height:420px;background:radial-gradient(circle,rgba(91,155,255,.12),transparent 65%);bottom:8%;right:12%"></div>
+  <div class="slide-in close">
+    <div class="kick">Thank you</div>
+    <h2>感谢大家聆听</h2>
+    <p class="lede">欢迎提问与讨论</p>
+    <p class="foot">分享人 斯琴托娅 · 众安 UED 内部分享</p>
+  </div>
+</section>
+
+</div><!-- /stage -->
+
+
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(stage.querySelectorAll('.slide'));
+  var total = slides.length;
+  var cur = 0;
+  document.getElementById('pg-total').textContent = ('0'+total).slice(-2);
+  var pgCur = document.getElementById('pg-cur');
+  var progress = document.getElementById('progress');
+  var sideNav = document.getElementById('sideNav');
+
+  /* ========== 自动给每页内容加 reveal 动效 ========== */
+  slides.forEach(function(slide){
+    var box = slide.querySelector('.slide-in');
+    if (!box) return;
+    var kids = Array.prototype.slice.call(box.children);
+    kids.forEach(function(el, i){
+      el.classList.add('reveal');
+      if (i < 6) el.classList.add('reveal-d' + (i+1));
+    });
+  });
+
+  /* ========== 左侧窄目录 ========== */
+  var CHAP_CLS = { '开场':'op', '问题':'sy', '路径':'fm', '平台':'lyj', '方法':'lyj' };
+  var CHAP_NAME = { '开场':'开场', '问题':'问题', '路径':'路径', '平台':'系统', '方法':'方法' };
+  var chapters = [];
+  slides.forEach(function(s, i){
+    var spk = s.dataset.spk || '';
+    var last = chapters[chapters.length - 1];
+    if (!last || last.spk !== spk) chapters.push({ spk:spk, start:i, count:1 });
+    else last.count++;
+  });
+  var dots = chapters.map(function(ch, ci){
+    var name = CHAP_NAME[ch.spk] || ch.spk;
+    var no = ('0' + (ci + 1)).slice(-2);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = CHAP_CLS[ch.spk] || '';
+    btn.title = name + ' · 第 ' + (ch.start + 1) + '–' + (ch.start + ch.count) + ' 页';
+    btn.innerHTML = '<span class="sn-dot"></span><span class="sn-meta"><span class="sn-no">' + no + '</span><span class="sn-name">' + name + '</span><span class="sn-bar"><i></i></span></span>';
+    btn.addEventListener('click', function(){ go(ch.start); });
+    sideNav.appendChild(btn);
+    ch.btn = btn;
+    ch.fill = btn.querySelector('.sn-bar i');
+    return btn;
+  });
+
+  function syncDots(){
+    chapters.forEach(function(ch){
+      var inChap = cur >= ch.start && cur < ch.start + ch.count;
+      ch.btn.classList.toggle('on', inChap);
+      ch.btn.classList.toggle('done', cur >= ch.start + ch.count);
+      ch.btn.setAttribute('aria-current', inChap ? 'true' : 'false');
+      var pct = 0;
+      if (cur >= ch.start + ch.count) pct = 100;
+      else if (inChap) pct = ((cur - ch.start + 1) / ch.count) * 100;
+      ch.fill.style.width = pct + '%';
+    });
+  }
+
+  function syncActiveSlide(){
+    slides.forEach(function(s,i){ s.classList.toggle('is-active', i===cur); });
+  }
+
+  /* ========== 当前页追踪 ========== */
+  function update(){
+    var best = 0, bestDist = Infinity;
+    slides.forEach(function(s, i){
+      var d = Math.abs(s.getBoundingClientRect().top);
+      if (d < bestDist){ bestDist = d; best = i; }
+    });
+    if (best !== cur){ cur = best; syncDots(); syncActiveSlide(); }
+    pgCur.textContent = ('0'+(cur+1)).slice(-2);
+    progress.style.width = ((cur+1)/total*100) + '%';
+    var spk = slides[cur].dataset.spk || '';
+    var tbSpk = document.getElementById('tb-spk');
+    var label = '内部分享', cls = '';
+    if (spk === '开场'){ label = '内部分享'; cls = ''; }
+    else if (spk === '问题'){ label = '问题 · 人怎么变'; cls = 'sy'; }
+    else if (spk === '路径'){ label = '路径和结果'; cls = 'fm'; }
+    else if (spk === '平台'){ label = '系统怎么做成'; cls = 'lyj'; }
+    else if (spk === '方法'){ label = '可带走的方法'; cls = 'lyj'; }
+    tbSpk.textContent = label;
+    tbSpk.className = 'tb-spk' + (cls ? ' ' + cls : '');
+    document.title = (slides[cur].dataset.title || '') + ' · 内部分享';
+  }
+  var ticking = false;
+  stage.addEventListener('scroll', function(){
+    if (!ticking){ requestAnimationFrame(function(){ update(); ticking=false; }); ticking=true; }
+  }, {passive:true});
+  syncDots(); syncActiveSlide(); update();
+
+  function go(n){ n = Math.max(0, Math.min(total-1, n)); slides[n].scrollIntoView({behavior:'smooth'}); }
+
+  /* ========== Auto Layout ↔ Flexbox 弹窗 ========== */
+  var flexModal = document.getElementById('flexModal');
+  var alCard = document.getElementById('alCard');
+  function flexOpen(){ flexModal.classList.add('on'); }
+  function flexClose(){ flexModal.classList.remove('on'); }
+  function flexIsOpen(){ return flexModal.classList.contains('on'); }
+  if (alCard){
+    alCard.addEventListener('click', flexOpen);
+    alCard.addEventListener('keydown', function(e){
+      if (e.key==='Enter' || e.key===' '){ e.preventDefault(); e.stopPropagation(); flexOpen(); }
+    });
+  }
+  document.getElementById('flexClose').addEventListener('click', flexClose);
+  document.getElementById('flexDim').addEventListener('click', flexClose);
+
+  /* ========== 通用讲解弹窗 ========== */
+  var CAP_MODALS = {
+    cap1: {
+      t: '设计系统拆解：把规范拆成四层「乐高」',
+      b: '<p class="lead">AI 读不动一整本规范文档，只认一层一层结构化的东西。拆解，就是把设计规范拆成四层，每层 AI 都能点名调用。</p>'
+       + '<div class="cap-h">四层分别是什么</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>Token</b>设计原子</div><div class="v">颜色、字号、间距、圆角的<em>具体数值</em>。例：主色 #00D68F、正文 14px、卡片圆角 12px。是最小的颗粒。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>组件</b>最小可用单元</div><div class="v">Button、Table、Tag 这些。由 Token 拼出来，并且带用法说明：什么时候用、什么时候不能用。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>模式</b>组件的固定搭配</div><div class="v">例：「搜索区 = 输入框 + 筛选下拉 + 查询按钮」。解决的是「组件怎么组合」的问题。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>模板</b>整页骨架</div><div class="v">例：「列表页 = 搜索区 + 表格 + 分页」。新页面从模板起步，不从一张白纸起步。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比：Token 是积木颗粒，组件是拼好的小模块，模式是拼法说明，模板是整套图纸。<b>缺一层，AI 就只能瞎猜一层。</b></div>'
+    },
+    cap3: {
+      t: 'AI Coding：不是聊天，是搭一个能反复用的工具',
+      b: '<p class="lead">写 Prompt 是「聊一次天」，聊完就散了。AI Coding 是让 AI 帮你做一个<em>能反复用的工具</em>——P2D 平台就是设计师用这种方式自己搭出来的。</p>'
+       + '<div class="cap-h">搭工具要懂的三件事</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>护栏</b>Harness</div><div class="v">把规矩写成文件，AI 每次动手前必读。不是事后挑错，是<em>事前约束</em>。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>协议</b>Protocol</div><div class="v">规定 AI 输出的固定格式（比如 8 个字段的 JSON）。格式稳了，程序才能稳定接住，不靠人盯着。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>循环</b>Loop</div><div class="v">让 AI 自己检查产出：截图对比、不合规自动重做。把质检也交给机器。</div></div>'
+       + '</div>'
+       + '<div class="foot">设计师在这里的角色：定结构、定规矩、验收结果。代码主要由 AI 写，但<b>「做什么、怎么做才对」由人决定</b>。</div>'
+    },
+    cap4: {
+      t: 'Agent 编排：把大活拆开，每个步骤派一个专职 Agent',
+      b: '<p class="lead">一个 Agent 一次干不完复杂的事，就像一个人不能同时当产品、设计和开发。编排 = 把大活拆成小步骤，每个步骤派一个专职 Agent，规定谁先谁后。</p>'
+       + '<div class="cap-h">一次生成背后的分工</div>'
+       + '<div class="cap-flow"><span class="fn"><b>1</b>澄清 Agent</span><span class="fa">→</span><span class="fn"><b>2</b>生成 Agent</span><span class="fa">→</span><span class="fn"><b>3</b>质检 Agent</span><span class="fa">→</span><span class="fn"><b>4</b>出码 Agent</span></div>'
+       + '<div class="cap-list" style="margin-top:12px">'
+       + '<div class="cap-item"><div class="k">为什么要拆</div><div class="v">每个 Agent 只干一件事，提示词可以更短更准；哪步出问题只重跑哪步，不用全部重来。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比餐厅后厨：点菜、切配、炒菜、传菜各一个人。<b>编排就是规定谁先谁后、半成品怎么交接。</b></div>'
+    },
+    cap5: {
+      t: '资产治理：把经验写成 AI 能读、能复用的东西',
+      b: '<p class="lead">经验现在散在文档、聊天记录、老同事的脑子里，AI 用不上。治理 = 把这些写成 AI 能读的文件，并且持续维护。</p>'
+       + '<div class="cap-h">合格的资产有三个标准</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>可复用</b></div><div class="v">满意的页面一键存成模板，下次同类需求直接调用，不重新教。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>可演进</b></div><div class="v">规范改一处，所有引用它的地方自动跟着变，不用逐个页面改。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>可索引</b></div><div class="v">每条资产有名字、有说明，AI 能「点名」找到它，而不是碰运气。</div></div>'
+       + '</div>'
+       + '<div class="foot">判断标准很简单：一条经验，换个新人或新 AI 来，<b>能不能不看你脸色就用起来？</b>能，才算资产。</div>'
+    },
+    robust: {
+      t: '鲁棒性：系统被折腾一下，还能站住',
+      b: '<p class="lead">Robustness。不是「功能多」，是<em>输入不完美时，系统照样能跑</em>。AI 吐出来的东西经常缺逗号、包在代码块里、字段名写错——解析器要接得住，用户才看不到报错白屏。</p>'
+       + '<div class="cap-h">这页在说什么</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">脆弱</div><div class="v">只认标准 JSON。格式稍偏，整页挂掉，设计师看到的是空白或报错。</div></div>'
+       + '<div class="cap-item"><div class="k">鲁棒</div><div class="v">先严格解析；解析不了就按字段捞；再不行从 Markdown 代码块里抽。三层兜底，尽量给用户一个能看的结果。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比：快递包装破了，脆弱的系统直接拒收；鲁棒的系统拆开还能把东西交给你。<b>三层解析器，就是这件事。</b></div>'
+    },
+    k5a: {
+      t: '三层数据：平台怎么记住「改的是哪一页」',
+      b: '<p class="lead">你说「把按钮改蓝」，平台知道改的是哪一页的哪个按钮——靠的就是这三层结构。</p>'
+       + '<div class="cap-h">从外到内三层</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>Project</b>项目</div><div class="v">最外层。一个需求一个项目，装着这个项目下所有的页面和资产。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>Page</b>页面</div><div class="v">每个页面有<em>独立的一份画布状态</em>。改 A 页不会串到 B 页——这就是「按页面隔离，避免串台」。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>Conversation</b>会话</div><div class="v">每页下面的对话记录：messages（聊天记录）、currentCode（当前代码）、currentSpec（当前页面说明书）、渲染模式、标注。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比：每个文档有自己的编辑历史，<b>撤销不会撤销到别的文档上</b>。</div>'
+    },
+    k5b: {
+      t: '最近 16 条窗口：AI 的记性怎么管',
+      b: '<p class="lead">AI 的「记性」有上限（叫上下文长度），不能把几个月的聊天记录全塞给它。平台只带最近 16 条——够它理解「你刚才在改什么」，又不会撑爆。</p>'
+       + '<div class="cap-h">这张卡上的三个词</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>消息清洗入库</b></div><div class="v">每条消息存下来之前去掉冗余（比如很长的代码原文），只留关键信息，省空间也好检索。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>自动命名</b></div><div class="v">用首条消息的前 24 个字当会话名。以后想找回「那次改票房的对话」，扫一眼名字就知道。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>一键恢复</b></div><div class="v">历史面板点一下，画布 + 对话 + 渲染模式<em>一起</em>回到当时的状态，不是只恢复文字。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比微信聊天记录：不是每次说话都从头翻，但往上滑总能找到。</div>'
+    },
+    k5c: {
+      t: '模式保护优先：宁可少给上下文，也不能乱了格式',
+      b: '<p class="lead">平台有两种产出模式：<em>JSON</em>（精确渲染）和 <em>Code</em>（自由代码）。铁律是：只在 Code 模式，才把当前代码塞给 AI 看。</p>'
+       + '<div class="cap-h">为什么这么较真</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">如果 JSON 模式也塞代码</div><div class="v">AI 会混淆「我到底该输出哪种」，可能擅自切换模式——这就是 render_mode 决策被污染。</div></div>'
+       + '<div class="cap-item"><div class="k">取舍</div><div class="v">宁可上下文给得少一点，也要保护它「该输出什么格式」的判断。<em>格式乱了，后面的渲染、出码全跟着崩。</em></div></div>'
+       + '</div>'
+       + '<div class="foot">一句话：上下文可以给不全，但输出格式不能乱。</div>'
+    },
+    key1: {
+      t: 'KEY 1 · 知识注入：AI 没读过你公司的规范',
+      b: '<p class="lead">大模型训练时没看过大麦的内部组件库和规范，就像新同事第一天上班。<em>注入</em> = 每次开工前，先把规范手册塞到它面前。</p>'
+       + '<div class="cap-h">一句话理解</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">全文注入</div><div class="v">整本手册直接给它，不是抽几页。保证它看到的是完整、不自相矛盾的规范。</div></div>'
+       + '</div>'
+       + '<div class="foot">这页是地图，下一页会专门拆开讲「怎么喂」。<b>先记住：不喂，AI 就只能按网上的通用审美瞎画。</b></div>'
+    },
+    key2: {
+      t: 'KEY 2 · 需求澄清：先问清楚，再动手',
+      b: '<p class="lead">需求总有模糊地带。「做一个票房大盘」——给谁看？实时数据还是日报？AI 直接猜，十猜九错。澄清 = 先把这些问清楚。</p>'
+       + '<div class="cap-h">黄金法则</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">答案不改变结构的问题，不问</div><div class="v">比如「主色用蓝还是绿」不改变页面结构，按规范默认就行。「要不要导出功能」会加一整块区域，才值得问。</div></div>'
+       + '</div>'
+       + '<div class="foot">问得太多人会烦，问得太少会做错。<b>分寸感就是这一页的核心。</b></div>'
+    },
+    key3: {
+      t: 'KEY 3 · 输出协议：AI 必须按合约交作业',
+      b: '<p class="lead">AI 说话天马行空，程序接不住。协议 = 签合同：必须按固定的 8 个字段交 JSON，程序才能稳定解析、渲染。</p>'
+       + '<div class="cap-h">三层兜底是什么</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>①</b>严格解析</div><div class="v">标准 JSON 解析，最理想的情况。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>②</b>正则提取</div><div class="v">AI 输出带了点杂质，用规则把字段一个个抠出来。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>③</b>代码块兜底</div><div class="v">实在不行，从 Markdown 代码块里捞。总之不给人看白屏。</div></div>'
+       + '</div>'
+       + '<div class="foot">别假设 AI 完美遵守格式。<b>宁可降级，也不报错。</b></div>'
+    },
+    key4: {
+      t: 'KEY 4 · 多渲染引擎：为什么要两套，不共用一套',
+      b: '<p class="lead">渲染 = 把 AI 的产出变成你能看见、能点的页面。B 端页面有的很标准，有的很野，<em>一套引擎顾不过来</em>。</p>'
+       + '<div class="cap-h">两套引擎，各管一类活</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>JSON 精确模式</b>按图纸拼乐高</div><div class="v">列表、表单、详情这类结构清楚的页。组件一一对应公司规范，像素级还原，<em>不允许乱跑</em>。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>JSX 灵活模式</b>手捏黏土</div><div class="v">复杂交互、非标页、先试一版的探索。直接跑代码，自由度高，适合「先看见再收」。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>谁来选</b>AI 自己判断</div><div class="v">靠输出里的 render_mode 字段决定走哪套，不用设计师手动切换。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>挂了怎么办</b>自动降级</div><div class="v">JSON 渲染失败，自动切到 JSX。人看到的永远是能点的页面，不是报错白屏。</div></div>'
+       + '</div>'
+       + '<div class="foot">一句话：<b>标准页求稳，复杂页求活；失败了还能兜住。</b>后面 KEY 4 会把两套引擎拆开讲。</div>'
+    },
+    key5: {
+      t: 'KEY 5 · 多轮迭代：让 AI 记得上一稿',
+      b: '<p class="lead">你说「把按钮改蓝」，要改的是<em>当前这页</em>，不是重画一张。做不到这一点，AI 就只是一次性生成工具，当不了协作伙伴。</p>'
+       + '<div class="cap-h">上下文感知是什么</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">不带当前画布</div><div class="v">AI 不知道现在屏幕上是什么。你说改按钮，它可能给你一张全新的页。</div></div>'
+       + '<div class="cap-item"><div class="k">每次请求悄悄带上</div><div class="v">平台把当前画布代码塞进这句话后面。人无感，AI 看见完整现场，只改你说的那块。</div></div>'
+       + '<div class="cap-item"><div class="k">状态持续性</div><div class="v">画布 + 对话记录 + 渲染模式，三者一起存、一起恢复。少一样，就会「失忆」或格式跑偏。</div></div>'
+       + '</div>'
+       + '<div class="foot">「它怎么又忘了」通常不是模型笨，<b>是状态没带上</b>。后面 KEY 5 会细拆怎么存、怎么带。</div>'
+    },
+    k1files: {
+      t: '8 个知识文件：按优先级塞进 System Prompt',
+      b: '<p class="lead">每次开工前，平台把这叠文件放到 AI 面前。位置越靠前，它越当回事。</p>'
+       + '<div class="cap-h">文件清单</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>01</b> system-prompt.md</div><div class="v">核心指令，最高权威。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>02</b> B-End-Design-System.md</div><div class="v">B 端设计系统规范。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>03</b> Style-Supplement.md</div><div class="v">样式补充规范。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>04</b> components-map.md</div><div class="v">组件映射表。AI 点名调用组件的目录。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>05</b> design-tokens.md</div><div class="v">Design Token 说明：颜色、字号、圆角、间距。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>06</b> scene-patterns/list-page-pattern.md</div><div class="v">场景规范 · 列表页。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>07</b> scene-patterns/form-page-pattern.md</div><div class="v">场景规范 · 表单页。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>08</b> scene-patterns/dashboard-pattern.md</div><div class="v">场景规范 · 数据看板。</div></div>'
+       + '</div>'
+       + '<div class="foot">分文件放，好维护。<b>最重要的核心指令放最前面。</b></div>'
+    },
+    k1a: {
+      t: 'System Prompt：AI 的岗前培训手册',
+      b: '<p class="lead">大模型本身没读过你公司的任何规范。所谓「注入」，就是每次它开工前，平台先把一叠文件放到它面前——放的位置就叫 System Prompt。</p>'
+       + '<div class="cap-h">三个关键词</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>System Prompt</b></div><div class="v">AI 的岗前培训手册。每次对话它第一件事就是读这个，<em>全程生效</em>，不会像聊天内容那样被顶掉。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>8 个知识文件</b></div><div class="v">分文件放，好维护。点页面上划线的「8 个知识文件」看清单。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>按优先级</b></div><div class="v">位置越靠前，AI 越当回事。最重要的原则放最前面。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比：不是等新同事犯错再纠正，<b>是入职第一天先发手册</b>。</div>'
+    },
+    k1reg: {
+      t: 'Registry 路由：给 AI 一本目录，让它自己去借整本书',
+      b: '<p class="lead">Registry 就是一份<strong>注册表 / 目录</strong>。页面上的 CLAUDE.md，就是这本目录：写着「列表页规范在哪个文件、按钮规范在哪个文件」。</p>'
+       + '<div class="cap-h">它怎么走</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>1</b>你下一句话</div><div class="v">比如「做个演出管理列表页」。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>2</b>AI 先翻目录</div><div class="v">对照路由表，点名找到该读哪几份文件。不是猜，是按目录查。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>3</b>把对应文件整本读进来</div><div class="v">读的是完整规范，不是抽几句。原则和例外还在一起，不会拦腰切断。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>4</b>再生成</div><div class="v">规范在手里，才开始出页面。</div></div>'
+       + '</div>'
+       + '<div class="cap-h">为什么前期用它</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">完整、轻、好改</div><div class="v">规则不会被截断；后台能开关、能排序；改完不用重启服务。架构轻，适合 MVP 先把链路跑通。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比图书馆：自己查索书号，把<em>整本书</em>借走。<b>先求对，不求省。</b></div>'
+    },
+    k1rag: {
+      t: 'RAG 检索：先抽几页复印件，再让 AI 开工',
+      b: '<p class="lead">RAG = Retrieval-Augmented Generation，检索增强生成。先按意思找到相关资料，再塞给 AI 写。页面上那句「图书管理员」，指的就是这一步。</p>'
+       + '<div class="cap-h">几个词是什么意思</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">向量数据库</div><div class="v">把文档切成小段，每段变成「意思指纹」。之后按<em>意思</em>搜，不是按关键词撞字。</div></div>'
+       + '<div class="cap-item"><div class="k">语义检索</div><div class="v">你说「做列表页」，它找出和列表、表格、筛选相关的几段，不一定原文里有这五个字。</div></div>'
+       + '<div class="cap-item"><div class="k">片段注入 Prompt</div><div class="v">只把抽到的这几段塞进 AI 面前的材料里。省「记性」，但上下文不完整。</div></div>'
+       + '</div>'
+       + '<div class="cap-h">短板在哪</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">规范是环环相扣的</div><div class="v">「主按钮用 Primary」抽到了，「例外情况」没抽到，AI 就漏判。片段互相看不见，上下文断了。</div></div>'
+       + '</div>'
+       + '<div class="foot">知识库变大了再叠加它。现在主路是 Registry。<b>规范被切碎的代价，比省下的空间大。</b></div>'
+    },
+    k1b: {
+      t: 'RAG 是什么？为什么会把规范切碎',
+      b: '<p class="lead">RAG（检索增强生成）像图书管理员：你问什么，它去书架上抽相关的几页给你。省空间，但会出问题。</p>'
+       + '<div class="cap-h">碎在哪</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">规范是环环相扣的</div><div class="v">「主流程按钮用 Primary」抽到了，但「例外情况」那段没抽到，AI 就漏判。片段之间互相看不见，上下文断了。</div></div>'
+       + '<div class="cap-item"><div class="k">全文注入 = 整本直接给</div><div class="v">保证完整和一致。代价是占「记性」空间，所以文件要写得精简。</div></div>'
+       + '</div>'
+       + '<div class="foot">MVP 阶段先求对，再求省。<b>规范被切碎的代价，比省下的空间大得多。</b></div>'
+    },
+    k1c: {
+      t: 'Registry vs RAG：目录手册和图书管理员',
+      b: '<p class="lead">两种让 AI 查规范的方式，成本差一个量级。</p>'
+       + '<div class="cap-h">对比一下</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>Registry</b>目录手册</div><div class="v">每个组件一行：名字、一句话说明、去哪查详情。AI 按目录点名。<em>1–2 天跑通，零依赖</em>。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>RAG</b>图书管理员</div><div class="v">要把文档切成小块、转成向量（可以理解成「数字指纹」），建向量库才能按意思检索。<em>1–2 周，还要维护</em>。</div></div>'
+       + '</div>'
+       + '<div class="foot">演进路径：先 Registry 跑通 → 混合 → 全量 RAG。<b>先让产线转起来，再换更强的检索引擎。</b></div>'
+    },
+    k1admin: {
+      t: 'ADMIN 管理面板：知识文件设计师自己改',
+      b: '<p class="lead">规范不能只躺在代码仓库里。平台给了一块管理面板，设计师在运行时就能改知识文件，不用等发版。</p>'
+       + '<div class="cap-h">三件事</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>开关</b></div><div class="v">这份文件这次喂不喂，可以单独关掉。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>排序</b></div><div class="v">优先级就是注入顺序。越靠前，AI 越当回事。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>在线编辑</b></div><div class="v">改完即时生效，不用重启服务。调优注入策略可以很快试。</div></div>'
+       + '</div>'
+       + '<div class="foot">规范始终在设计师手里。<b>改规则，不必等一次发版。</b></div>'
+    },
+    k4a: {
+      t: 'JSON Schema 引擎：精确从哪来',
+      b: '<p class="lead">这套引擎干的事：把 AI 写的「页面说明书」（JSON）直接变成真页面，不是截图，不是 Demo。</p>'
+       + '<div class="cap-h">三个词拆开</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>@json-render</b>渲染器</div><div class="v">说明书里写 "type": "Table"，它就调出<em>真正的 Table 组件</em>摆上去。35+ 大麦组件都有对应关系。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>Zod 校验</b>收作业前先检查</div><div class="v">渲染之前先查说明书：字段齐不齐、类型对不对。不合格就不渲染，避免给人看半成品。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>零漂移</b></div><div class="v">因为用的是真组件，不是 AI 凭感觉画的，所以能像素级还原。</div></div>'
+       + '</div>'
+       + '<div class="foot">适合结构清楚的页面：列表、表单、详情。<b>越标准，越准。</b></div>'
+    },
+    k4b: {
+      t: 'JSX 引擎：灵活从哪来',
+      b: '<p class="lead">JSX 是前端写界面的一种代码写法。这套引擎直接跑 AI 写的代码，不走说明书。</p>'
+       + '<div class="cap-h">三个词拆开</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>react-runner</b>即时厨房</div><div class="v">在浏览器里当场编译、当场跑。不用等打包部署，几秒钟看到结果。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>什么时候走这套</b></div><div class="v">复杂交互、非标页面——JSON 说明书表达不了的，就让 AI 直接写代码。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>代价</b></div><div class="v">自由度高，但还原精度靠 AI 自觉，所以要配自动质检兜底。</div></div>'
+       + '</div>'
+       + '<div class="foot">一套管「准」，一套管「活」。<b>不是二选一，是按页面类型自动分流。</b></div>'
+    },
+    k4c: {
+      t: 'ErrorBoundary：渲染崩了怎么办',
+      b: '<p class="lead">ErrorBoundary（错误边界）是前端的保险丝：包住渲染区域，里面一崩，它接住错误，不让整个页面白屏。</p>'
+       + '<div class="cap-h">在这条产线里怎么转</div>'
+       + '<div class="cap-flow"><span class="fn"><b>1</b>JSON 渲染</span><span class="fa">→</span><span class="fn"><b>崩</b>ErrorBoundary 接住</span><span class="fa">→</span><span class="fn"><b>切</b>react-runner 再试</span><span class="fa">→</span><span class="fn"><b>✓</b>正常显示</span></div>'
+       + '<div class="cap-list" style="margin-top:12px">'
+       + '<div class="cap-item"><div class="k">用户感知</div><div class="v">无感。看到的永远是能点的页面，不知道后台刚切换过引擎。</div></div>'
+       + '</div>'
+       + '<div class="foot">铁律：<b>可以降级，不能报错。</b>报错页一出现，工具的信任就没了。</div>'
+    },
+    k4d: {
+      t: '四种预览：同一张页面，四种看法',
+      b: '<p class="lead">生成完不是只有一种看法。四种预览各管一个场景。</p>'
+       + '<div class="cap-h">分别什么时候用</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>单页</b></div><div class="v">像真实用户一样看最终效果。验收用。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>画板 · 无限缩放</b></div><div class="v">所有页面平铺在一张画布上，看整体信息流和页面之间的关系。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>Inspect · 交互标注</b></div><div class="v">点任意元素，看它的尺寸、间距、组件名。<em>给开发交付用</em>。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>Dev · 看 CSS / Token</b></div><div class="v">直接看样式值和 Token 映射，查「颜色对不对、间距哪来的」。</div></div>'
+       + '</div>'
+       + '<div class="foot">设计师验收用 <b>单页 + 画板</b>；交付开发用 <b>Inspect + Dev</b>。</div>'
+    },
+    k3a: {
+      t: '三层兜底解析：AI 跑偏了，程序怎么接住',
+      b: '<p class="lead">AI 答应按 JSON 交作业，但它不是程序，输出偶尔会「跑偏」。三层兜底就是三道保险：无论它怎么跑偏，人都能看到页面。</p>'
+       + '<div class="cap-h">三道保险的顺序</div>'
+       + '<div class="cap-flow"><span class="fn"><b>①</b>严格解析</span><span class="fa">失败 →</span><span class="fn"><b>②</b>逐字段抠</span><span class="fa">失败 →</span><span class="fn"><b>③</b>代码块兜底</span><span class="fa">→</span><span class="fn"><b>✓</b>渲染</span></div>'
+       + '<div class="cap-list" style="margin-top:12px">'
+       + '<div class="cap-item"><div class="k"><b>①</b>严格解析（JSON.parse）</div><div class="v">AI 输出干干净净的 JSON，程序直接读。<em>什么时候会失败：</em>它多嘴了——在 JSON 前面加一句「好的，这是你要的页面：」。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>②</b>字段逐一正则提取</div><div class="v">整体读不了，就退一步：用文本匹配规则，把 8 个字段一个一个抠出来。类比：表格弄脏了，整页扫描失败，就按栏目一格一格抄。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>③</b>Markdown 代码块兜底</div><div class="v">AI 有时把答案包在 ```json 代码块里。最后一招：把代码块里的内容捞出来再试。还接不住，交给渲染层的 ErrorBoundary（下一页讲的保险丝）。</div></div>'
+       + '</div>'
+       + '<div class="foot">核心思想：别假设 AI 完美遵守格式，每一层都假设上一层可能失败。<b>宁可内容降级，也不给人看白屏。</b></div>'
+    },
+    run1: {
+      t: '第 1 段 · 用户输入：两种进门方式',
+      b: '<p class="lead">平台接受两种输入：打一句话（A2D），或上传一份 PRD 文件（P2D，支持 PDF / Word）。</p>'
+       + '<div class="cap-h">为什么支持 PRD</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">正式需求大多写在 PRD 里</div><div class="v">不让设计师把 PRD 抄成一段话——直接上传，平台先把它解析成文本，再走后面的流程。</div></div>'
+       + '<div class="cap-item"><div class="k">两种输入，同一套后续</div><div class="v">不管从哪个门进来，后面的澄清、组装、推理、解析、渲染完全一样。</div></div>'
+       + '</div>'
+       + '<div class="foot">一句话：<b>入口可以宽，进了一扇门就是同一条产线。</b></div>'
+    },
+    run2: {
+      t: '第 2 段 · 需求澄清：先对齐，再动手',
+      b: '<p class="lead">这一段对应 KEY 2 那页。平台不急着生成，先和你对齐。</p>'
+       + '<div class="cap-h">三个动作</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>摘要</b></div><div class="v">先亮牌：「我理解成这样」。理解偏了，你在这一步就能拦住。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>提问</b></div><div class="v">只问会改变页面结构的问题，给候选选项让你点，不是让你写作文。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>确认书</b></div><div class="v">10 项结构化确认，「本次不包含」必填。对齐了才放行到下一步。</div></div>'
+       + '</div>'
+       + '<div class="foot">这一步多花一分钟，<b>后面少返工十遍</b>。</div>'
+    },
+    run3: {
+      t: '第 3 段 · 知识组装：按这次需求挑规范',
+      b: '<p class="lead">对应 KEY 1 那页。「组装」的意思是：不是把所有规范文件一股脑扔给 AI，而是按这次需求的类型，挑相关的、按优先级排好再注入。</p>'
+       + '<div class="cap-h">为什么要挑</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">AI 的「记性」有限</div><div class="v">塞得越多越杂，关键规则越容易被冲淡。做列表页就重点给表格、筛选的规范；做表单就重点给校验、分组的规范。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比：出差按行程收拾行李，<b>不是把整个衣柜搬走</b>。</div>'
+    },
+    run4: {
+      t: '第 4 段 · LLM 推理：真正「想」的一步',
+      b: '<p class="lead">LLM = 大语言模型（Claude、GPT 这类）。前面准备好的需求和规范，在这一步交给它，它开始「想」并写出页面方案。</p>'
+       + '<div class="cap-h">两个术语拆开</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>流式 SSE</b>边想边输出</div><div class="v">SSE 是让服务器主动往页面推内容的技术。效果是：AI 的答案一个字一个字往外蹦，像看直播，而不是等整段下载完。人等得不焦虑，也能随时发现它跑偏。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>Anthropic / OpenAI 双协议</b></div><div class="v">两家的接口格式不一样。平台同时兼容两套，意思是：<em>换模型不用改代码</em>——今天用 Claude，明天想试 GPT，切换就行。</div></div>'
+       + '</div>'
+       + '<div class="foot">对设计师来说只要记住：<b>这一步是 AI 在动笔，其余各段都是人和程序在管规矩。</b></div>'
+    },
+    run5: {
+      t: '第 5 段 · 协议解析：把 AI 的回答变成数据',
+      b: '<p class="lead">对应 KEY 3 那页。AI 交上来的 8 字段 JSON，程序按合约检查、解析，变成能渲染的数据。</p>'
+       + '<div class="cap-h">没接住怎么办</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k">三层兜底</div><div class="v">严格解析 → 逐字段抠 → 代码块兜底。上一页那张「三层兜底解析」卡片可以点开，有逐层例子。</div></div>'
+       + '</div>'
+       + '<div class="foot">这一段是「翻译」：<b>把 AI 的人话，翻译成程序能用的结构。</b></div>'
+    },
+    run6: {
+      t: '第 6 段 · 渲染输出：变成你能点能看的页面',
+      b: '<p class="lead">对应 KEY 4 / 5 那两页。解析完的数据交给双引擎渲染，变成真实页面。</p>'
+       + '<div class="cap-h">这一段包含什么</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>双引擎</b></div><div class="v">结构清楚的走 JSON 精确渲染，复杂的走 JSX 灵活探索。失败自动降级，人看到的永远是能点的页面。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>标注 + Dev</b></div><div class="v">页面自带交互标注和 CSS / Token 查看，生成完就能交付，不用补标注。</div></div>'
+       + '</div>'
+       + '<div class="foot">到这里，一次请求跑完。<b>从一句话到能交付的页面，6 段全在一个对话里。</b></div>'
+    },
+
+    pit1: {
+      t: '坑 01 · 假 JSON：它说守规矩，经常是假的',
+      b: '<p class="lead">AI 嘴上答应返回标准 JSON，实际吐出来的东西经常不守规矩。</p>'
+       + '<div class="cap-h">「假」在哪</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>Markdown 包裹</b></div><div class="v">外面套一层 ``` 代码块，程序直接不认识。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>自作主张加注释</b></div><div class="v">在 JSON 里写 // 解释，标准 JSON 根本不允许注释。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>尾部逗号</b></div><div class="v">最后一个字段后面多一个逗号，人看着没事，程序直接报错。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>说到一半被截断</b></div><div class="v">输出太长，后半截没了，括号都合不上。</div></div>'
+       + '</div>'
+       + '<div class="cap-h">解法</div>'
+       + '<div class="cap-flow"><span class="fn">严格解析</span><span class="fa">→</span><span class="fn">逐字段抠</span><span class="fa">→</span><span class="fn">代码块兜底</span></div>'
+       + '<div class="foot">一层接不住还有下一层。<b>别假设 AI 完美遵守格式，任何输出都要有接住它的后路。</b></div>'
+    },
+
+    pit2: {
+      t: '坑 02 · 在未验证的假设上继续构建',
+      b: '<p class="lead">「我把规范喂进去了，AI 就应该看懂了」——这是幻觉。注入 ≠ 理解。</p>'
+       + '<div class="cap-h">为什么会踩</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>看到了 ≠ 看懂了</b></div><div class="v">AI 可能看到了规范但理解偏了，也可能压根没用上。不验证就继续往下搭，错会一层层放大。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>类比</b></div><div class="v">像盖楼：地基没验收就往上盖，盖到十层才发现歪了，只能推倒重来。</div></div>'
+       + '</div>'
+       + '<div class="cap-h">解法</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>真实数据验证</b></div><div class="v">每个假设都拿真实需求跑一遍，确认了再往下走。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>小步快跑</b></div><div class="v">做一步验一步，不是全部写完再测。</div></div>'
+       + '</div>'
+       + '<div class="foot">对我们：每加一个规则文件、每改一次提示词，<b>都拿真实需求过一遍看效果</b>，别凭感觉。</div>'
+    },
+
+    pit3: {
+      t: '坑 03 · 对话一长，AI 就「失忆」',
+      b: '<p class="lead">聊得越久，AI 越不守规矩——早期说的规则被后来的对话稀释，输出开始漂移。</p>'
+       + '<div class="cap-h">为什么会失忆</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>注意力被稀释</b></div><div class="v">上下文窗口有限，对话越多，每条规则分到的「注意力」越少，慢慢就忘了。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>类比</b></div><div class="v">像开会开了三小时，开场定的规矩，散会时大家都忘了。</div></div>'
+       + '</div>'
+       + '<div class="cap-h">解法</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>规则文件化</b></div><div class="v">重要规则写进规则文件，每次请求自动带上，不靠对话记忆。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>文件才是长期记忆</b></div><div class="v">对话会忘，文件不会。这也是 KEY 1 知识注入存在的理由。</div></div>'
+       + '</div>'
+       + '<div class="foot">对我们：和 AI 协作时，重要的约定<b>写下来、固化成文件</b>，别指望它记住聊天里的每句话。</div>'
+    },
+
+    har1: {
+      t: 'L1 · 组件提示词：每个组件的「使用说明书」',
+      b: '<p class="lead">每个组件配一段自我介绍，AI 选组件时读它来判断「这个场景该不该用我」。生成不准时，八成是某个组件的这段说明没写清——改这一段就见效，所以它是最高频的调优入口。</p>'
+       + '<div class="cap-h">4 段式长什么样（以表格组件为例）</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>① 描述</b></div><div class="v">这是什么：「数据表格，展示结构化列表数据」。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>② 何时使用</b></div><div class="v">什么场景该选它：「需要逐行对比、批量操作、看明细时用」。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>③ 业务策略</b></div><div class="v">在我们业务里怎么用：「票房数据优先大数字样式；列表默认按时间倒序」。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>④ 约束</b></div><div class="v">不能怎么用：「超过 5 列必须分页；不允许嵌套表格」。</div></div>'
+       + '</div>'
+       + '<div class="foot">四段都写完，AI 选组件就有凭有据，不再瞎猜。</div>'
+    },
+
+    har2: {
+      t: 'L2 · 库级提示词：整个组件库的「3 段式」',
+      b: '<p class="lead">L1 管单个组件，L2 管整个组件库的全局规矩。它是一段每次生成都带上的整库 system prompt，改一次影响所有页面——所以改它要谨慎。</p>'
+       + '<div class="cap-h">3 段式是哪三段</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>① 库里有什么</b></div><div class="v">组件清单和能力边界：这个库覆盖哪些组件、不覆盖哪些。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>② 怎么选</b></div><div class="v">选择优先级：先用业务组件 MaiUI，没有再降级到 antd5 + Token，最后才是原生。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>③ 全局约束</b></div><div class="v">所有页面都必须遵守的底线规则，比如间距、栅格、禁用写法。</div></div>'
+       + '</div>'
+       + '<div class="cap-h">和 L1 的关系</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>类比</b></div><div class="v">L1 是每本书的说明书，L2 是整个图书馆的借阅规则。AI 先读借阅规则，再查具体某本书的说明书。</div></div>'
+       + '</div>'
+    },
+
+    har3: {
+      t: 'L3 · 产物级：满意的页面，一键存成模板',
+      b: '<p class="lead">生成出满意的页面，一键沉淀成模板。下次同类页面从模板改，不从零生成——越用越准。</p>'
+       + '<div class="cap-h">两个作用</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>复用</b></div><div class="v">模板成为新会话的起点，同类页面直接基于它生成，质量和效率都更稳。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>D2C 入口</b></div><div class="v">模板不只给 AI 参考，还能直接进入交付链路转成代码，是设计到代码的交接点。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比：做得好的页面「存档」，下次从存档改，不重新画。</div>'
+    },
+
+    har4: {
+      t: 'L4 · 版式级：先定户型，再摆家具',
+      b: '<p class="lead">新会话开始时，先给 AI 一个版式骨架：hero（大图头）、分栏、流式列表、dashboard（数据看板）。AI 先拿骨架，再往里填组件，不会自由发挥页面结构。</p>'
+       + '<div class="cap-h">为什么需要它</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>没有它</b></div><div class="v">AI 自己决定页面结构，同样的需求每次长得都不一样。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>有了它</b></div><div class="v">结构从几种验证过的骨架里选，产出稳定、符合业务习惯。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比：先定户型（几室几厅），再摆家具（组件）。</div>'
+    },
+
+    har5: {
+      t: 'L5 · 全局级：平台的地基，最后的兜底',
+      b: '<p class="lead">Design Token（颜色、字号、间距的数值表）+ 全局布局规则。所有 Agent 节点的兜底：无论哪一层没匹配到更具体的规则，最后都落到 L5，保证视觉不跑偏。</p>'
+       + '<div class="cap-h">两个特征</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>优先级最高</b></div><div class="v">和上层的规则冲突时，以它为准。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>影响面最广</b></div><div class="v">改它等于改整个平台的视觉地基，所有页面都受影响。</div></div>'
+       + '</div>'
+       + '<div class="foot">类比：建筑里的国家标准——不管谁施工、哪一层没写清，都得符合国标。</div>'
+    },
+    spec1: {
+      t: 'Spec：不是聊天，是一份可验收的任务书',
+      b: '<p class="lead">Spec = Specification，规格说明书。斯坦福一门课的说法：<em>Spec is the new source code</em>——以前源头是人写的代码，现在源头是你交给 AI 的这份任务书。代码是它执行出来的。</p>'
+       + '<div class="cap-h">跟前面那份 JSON Spec 不是一回事</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>这里的 Spec</b>任务书</div><div class="v">你写给 AI 的需求规格：做什么、做到什么算完、什么不要做。聊天记录不算。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>前面的 JSON Spec</b>页面说明书</div><div class="v">系统吐出来的中间层：这页有哪些区、用哪些组件、怎么摆。那是产线产物，不是这页在讲的东西。</div></div>'
+       + '</div>'
+       + '<div class="cap-h">一份合格 Spec 的五项检查</div>'
+       + '<div class="cap-list">'
+       + '<div class="cap-item"><div class="k"><b>问题陈述</b></div><div class="v">要解决什么问题，一句话说清。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>方案描述</b></div><div class="v">具体到数字。别写「好看一点」，写「主按钮 32px 高、圆角 4px」。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>技术约束</b></div><div class="v">必须用哪些组件、哪些规范、不能碰哪些栈。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>红线边界</b>Non-goals</div><div class="v">这次明确不做的事。说清「不要什么」，比「要什么」更关键。</div></div>'
+       + '<div class="cap-item"><div class="k"><b>交付标准</b></div><div class="v">怎么算做完。写不出来验收标准，就还没想清楚。</div></div>'
+       + '</div>'
+       + '<div class="foot">5 条精确到可验收的描述，胜过 500 字模糊的氛围描写。写不出来，就让 AI 先问你，问到能填完这五项再开干。</div>'
+    }
+  };
+  var capModal = document.getElementById('capModal');
+  var capTitle = document.getElementById('capTitle');
+  var capBody = document.getElementById('capBody');
+  function capOpen(id){ var m = CAP_MODALS[id]; if(!m) return; capTitle.textContent = m.t; capBody.innerHTML = m.b; capModal.classList.add('on'); }
+  function capClose(){ capModal.classList.remove('on'); }
+  function capIsOpen(){ return capModal.classList.contains('on'); }
+  document.querySelectorAll('[data-cap]').forEach(function(el){
+    el.addEventListener('click', function(e){ e.stopPropagation(); capOpen(el.dataset.cap); });
+    el.addEventListener('keydown', function(e){
+      if (e.key==='Enter' || e.key===' '){ e.preventDefault(); e.stopPropagation(); capOpen(el.dataset.cap); }
+    });
+  });
+  document.getElementById('capClose').addEventListener('click', capClose);
+  document.getElementById('capDim').addEventListener('click', capClose);
+
+  /* ========== 图片放大 Lightbox ========== */
+  var lightbox = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lbImg');
+  var lbCap = document.getElementById('lbCap');
+  function lbOpen(src, cap){ lbImg.src = src; lbCap.textContent = cap || ''; lbCap.style.display = cap ? '' : 'none'; lightbox.classList.add('on'); }
+  function lbClose(){ lightbox.classList.remove('on'); }
+  function lbIsOpen(){ return lightbox.classList.contains('on'); }
+
+  /* 第 14 页：步骤切图 */
+  (function(){
+    var root = document.getElementById('lyj1b');
+    if (!root) return;
+    var shots = [{label:'首页',cap:'平台首页 · 输入需求 / 上传 PRD / 热门模板 / 历史会话',src:'images/01-home.jpg'},{label:'澄清',cap:'需求澄清 · 先亮理解，结构化提问，点选项再生成',src:'images/02-clarify.jpg'},{label:'单页',cap:'单页预览 · 生成的 B 端页，可新开标签全屏看',src:'images/03-page.jpg'},{label:'画板',cap:'画板视图 · 侧栏路由 + 多页面预览，继续说话就能改',src:'images/04-canvas.jpg'},{label:'标注',cap:'交互标注 · 触发逻辑和接口行为逐条可读、可验收',src:'images/05-annotate.jpg'},{label:'Dev',cap:'Dev 模式 · CSS、间距、组件规范，方便直接交付开发',src:'images/06-dev.jpg'}];
+    var img = document.getElementById('useShotImg');
+    var cap = document.getElementById('useShotCap');
+    var thumbs = document.getElementById('useThumbs');
+    var steps = root.querySelectorAll('.stepi');
+    var curShot = 0;
+    shots.forEach(function(s, i){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-i', String(i));
+      b.innerHTML = '<img alt=""><span></span>';
+      b.querySelector('img').src = s.src;
+      b.querySelector('span').textContent = s.label;
+      b.addEventListener('click', function(e){ e.stopPropagation(); show(i); });
+      thumbs.appendChild(b);
+    });
+    function show(i, fromStep){
+      curShot = i;
+      img.src = shots[i].src;
+      cap.textContent = shots[i].cap;
+      Array.prototype.forEach.call(thumbs.children, function(t, j){ t.classList.toggle('on', j===i); });
+      if (fromStep){
+        Array.prototype.forEach.call(steps, function(st){ st.classList.toggle('on', st===fromStep); });
+      } else {
+        var map = [0,1,2,3,3,3];
+        var si = map[i];
+        Array.prototype.forEach.call(steps, function(st, j){ st.classList.toggle('on', j===si); });
+      }
+    }
+    Array.prototype.forEach.call(steps, function(st){
+      st.addEventListener('click', function(){ show(parseInt(st.getAttribute('data-shot'), 10) || 0, st); });
+    });
+    show(0);
+  })();
+
+  document.querySelectorAll('.figure').forEach(function(fig){
+    var img = fig.querySelector('img');
+    if (!img) return;
+    fig.addEventListener('click', function(){
+      var cap = fig.querySelector('.cap');
+      lbOpen(img.getAttribute('src'), cap ? cap.textContent : '');
+    });
+  });
+  document.getElementById('lbClose').addEventListener('click', lbClose);
+  document.getElementById('lbDim').addEventListener('click', lbClose);
+  lbImg.addEventListener('click', lbClose);
+
+  /* ========== 键盘 ========== */
+  document.addEventListener('keydown', function(e){
+    var k = e.key;
+    if (flexIsOpen() || capIsOpen() || lbIsOpen()){
+      if (k==='Escape'){ e.preventDefault(); flexClose(); capClose(); lbClose(); }
+      if (k==='ArrowDown'||k==='ArrowRight'||k==='PageDown'||k===' '||k==='ArrowUp'||k==='ArrowLeft'||k==='PageUp'||k==='Home'||k==='End'){ e.preventDefault(); }
+      return;
+    }
+    if (k==='ArrowDown'||k==='ArrowRight'||k==='PageDown'||k===' '){ e.preventDefault(); go(cur+1); }
+    else if (k==='ArrowUp'||k==='ArrowLeft'||k==='PageUp'){ e.preventDefault(); go(cur-1); }
+    else if (k==='Home'){ e.preventDefault(); go(0); }
+    else if (k==='End'){ e.preventDefault(); go(total-1); }
+  });
+
+  /* ========== 自定义光标 ========== */
+  var curEl = document.getElementById('cursor');
+  var ring = curEl.querySelector('.ring');
+  var isCoarse = window.matchMedia('(pointer: coarse)').matches;
+  if (isCoarse){
+    document.body.classList.add('coarse-pointer');
+    curEl.classList.add('hide');
+  } else {
+    document.body.classList.add('has-cursor');
+    var mx = window.innerWidth/2, my = window.innerHeight/2, rx = mx, ry = my;
+    var hovering = false, visible = false;
+    var hoverSel = 'a,button,.kcard,.term,.agi,.hlayer,.lane,.st,.rs,.jc,.chip,.pill,.side-nav button,.swap .sr,.break .bx,.scard,.spk,.figure,.al-link,.al-hint,.quote.al-hot,.steps.switch .stepi,.rrow.al-hot';
+    document.addEventListener('mousemove', function(e){
+      mx = e.clientX; my = e.clientY;
+      if (!visible){ visible = true; curEl.style.opacity = '1'; }
+    }, {passive:true});
+    document.addEventListener('mouseleave', function(){ visible = false; curEl.style.opacity = '0'; });
+    document.addEventListener('mouseenter', function(){ visible = true; curEl.style.opacity = '1'; });
+    document.addEventListener('mousedown', function(){ curEl.classList.add('click'); });
+    document.addEventListener('mouseup', function(){ curEl.classList.remove('click'); });
+    document.addEventListener('mouseover', function(e){
+      var t = e.target;
+      hovering = !!(t && t.closest && t.closest(hoverSel));
+      curEl.classList.toggle('hover', hovering);
+      curEl.classList.toggle('hide', !!(t && t.closest && (t.closest('.flex-modal') || t.closest('.lightbox'))));
+    });
+    curEl.style.opacity = '0';
+    curEl.style.transition = 'opacity .2s';
+    (function loop(){
+      rx += (mx - rx) * 0.22;
+      ry += (my - ry) * 0.22;
+      curEl.querySelector('.dot').style.transform = 'translate('+mx+'px,'+my+'px) translate(-50%,-50%)';
+      ring.style.transform = 'translate('+rx+'px,'+ry+'px) translate(-50%,-50%)';
+      requestAnimationFrame(loop);
+    })();
+  }
+})();
+</script>
+</body>
+</html>
