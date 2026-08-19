@@ -597,6 +597,9 @@ section[data-spk="问题"] .kcard:hover{border-color:rgba(91,155,255,.4)}
   margin-top:32px;padding-top:16px;border-top:1px solid var(--line);
   font-size:12px;color:var(--tx-3);line-height:1.7;letter-spacing:.04em;
 }
+#s-thanks{justify-content:center;padding-top:64px;padding-bottom:80px}
+#s-thanks .slide-in{margin:0 auto}
+
 /* 议程 */
 .agenda{display:flex;flex-direction:column;gap:8px;margin-top:28px;max-width:860px}
 .agi{display:grid;grid-template-columns:56px 1fr;gap:18px;align-items:center;padding:18px 20px;border-radius:14px;border:1px solid transparent;transition:.3s var(--ease);background:rgba(255,255,255,.015)}
@@ -1432,37 +1435,27 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
       <div class="ka">→</div>
       <div class="kk"><div class="n">05</div><h4>生成准确<br>设计产物</h4></div>
     </div>
-    <div class="pre-grid" style="margin-top:18px">
-      <div class="chat" style="margin-top:0;max-width:none;gap:10px">
-        <div class="msg user">
-          <div class="who">我 · 输入</div>
-          <div class="bubble">生成一个管理页面</div>
-        </div>
-        <div class="msg ai" style="max-width:100%">
-          <div class="who">AI · 我的初步理解</div>
-          <div class="bubble" style="font-size:12.5px">
-            你需要一个管理页面。在开始设计前，有 <b>3 个关键问题</b>需要确认，以避免方向偏差：
-            <div class="q" style="margin-top:8px;padding-top:8px"><span class="qn">Q1</span>管理什么业务对象？<span class="opt">演出 / 票务管理</span></div>
-            <div class="q" style="margin-top:6px;padding-top:6px"><span class="qn">Q2</span>核心功能形态？<span class="opt">列表查询 + 筛选（最常见）</span></div>
-            <div class="q" style="margin-top:6px;padding-top:6px"><span class="qn">Q3</span>需要哪些核心操作？<span class="opt">新增 / 编辑 / 删除</span></div>
-          </div>
-        </div>
-        <div class="msg ai" style="max-width:100%">
-          <div class="who">AI · 推理整理过程</div>
-          <div class="bubble" style="font-size:12.5px">已生成<b>演出票务管理列表页</b>：搜索区（名称 / 状态 / 时间三个筛选项）+ 数据表格（5 条 mock 数据，含状态 Tag 与差异化操作列）+ 分页组件，共标注 <b>4 处交互节点</b>。</div>
-        </div>
+    <div class="pre-card" style="margin-top:18px;padding:16px 18px">
+      <div class="k-i">例如</div>
+      <p>输入「生成一个管理页面」</p>
+      <p style="margin-top:10px"><b>AI：我的初步理解</b></p>
+      <p>需要一个管理页面。在开始设计前，有3个关键问题需要确认，以避免方向偏差。已确认以下设计需求，请确认一下设计：这个管理页面是用来管理什么业务对象的？：演出/票务管理 页面的核心功能形态是什么？列表查询+筛选（最常见）页面需要哪些核心操作？新增/编辑/</p>
+      <p style="margin-top:10px"><b>推理整理过程</b></p>
+      <p>已生成演出票务智能列表页、含搜索区（演出名称状态演出时间三个筛选项）数据表格（5条mock数据，含状态Tag渲染和差异化操作列）与分页组件，共标注4处交互节点。</p>
+    </div>
+    <div class="pre-grid" style="margin-top:14px;grid-template-columns:1fr 1fr">
+      <div class="pre-card">
+        <div class="k-i">底层实现</div>
+        <p><b>澄清 Agent prompt 约束</b> —— 定义 AI 应该问什么类型的问题，怎么梳理不确定信息</p>
+        <p style="margin-top:8px"><b>业务知识库配合</b> —— 让 AI 了解大麦 B 端业务背景，才能问出有价值的问题</p>
+        <p style="margin-top:8px"><b>结构化选项设计</b> —— 不是开放式问答，而是前置选项点击，降低用户回答成本</p>
       </div>
-      <div class="pre-side">
-        <div class="pre-card">
-          <div class="k-i">底层实现</div>
-          <p><b>澄清 Agent prompt 约束</b> —— 定义 AI 应该问什么类型的问题，怎么梳理不确定信息</p>
-          <p style="margin-top:8px"><b>业务知识库配合</b> —— 让 AI 了解大麦 B 端业务背景，才能问出有价值的问题</p>
-          <p style="margin-top:8px"><b>结构化选项设计</b> —— 不是开放式问答，而是前置选项点击，降低用户回答成本</p>
-        </div>
-        <div class="pre-card hot">
-          <div class="k-i">效果</div>
-          <p>澄清完毕后，AI 拿到的是<b>明确无歧义的设计 spec</b> —— 生成准确率大幅提升，减少「AI 没理解我的意思」的返工。</p>
-        </div>
+      <div class="pre-card">
+        <div class="k-i">典型澄清场景</div>
+        <p><b>页面类型</b> —— 是列表页、表单页，还是详情页？</p>
+        <p style="margin-top:6px"><b>数据规模</b> —— 表格大概几列？有没有批量操作？</p>
+        <p style="margin-top:6px"><b>业务状态</b> —— 有哪些状态流转？对应什么操作？</p>
+        <p style="margin-top:6px"><b>交互要求</b> —— 需要内联编辑吗？有没有权限控制？</p>
       </div>
     </div>
   </div>
@@ -1496,7 +1489,7 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
     <div class="kick">KEY 2 · 需求澄清</div>
     <h2 class="t">完整交互流程</h2>
     <p class="sub">严格按顺序执行，不允许跳过 Step 2 直接提问，不允许无脑套通用模板</p>
-    <div class="two-w" style="margin-top:16px;gap:16px">
+    <div class="two-w" style="margin-top:16px;gap:16px;grid-template-columns:1fr 1fr">
       <div class="fsteps">
         <div class="fstep">
           <div class="hd"><span class="sn">Step 0</span><h4>用户提交<i>遵守规范</i></h4></div>
@@ -1514,12 +1507,12 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
           <div class="hd"><span class="sn">Step 3</span><h4>澄清问题清单<i>优先级分级</i></h4></div>
           <p>关键问题：影响核心设计方案，必答。重要问题：影响交互细节，建议答。次要问题：给默认假设，错了再纠正。其它补充：说明需要什么、为什么需要。</p>
         </div>
+      </div>
+      <div class="fsteps">
         <div class="fstep">
           <div class="hd"><span class="sn">Step 4</span><h4>吸收回答 · 判断追问<i>≤ 2 轮</i></h4></div>
           <p>把新信息纳入需求理解。仍有关键缺失 → 进入第二轮追问。信息已足够 → 直接输出确认书。</p>
         </div>
-      </div>
-      <div class="fsteps">
         <div class="fstep">
           <div class="hd"><span class="sn">Step 5</span><h4>需求理解确认书<i>结构化交付</i></h4></div>
           <p>完整 10 项：概述 / 范围 / 角色权限 / 功能点 / 交互流程 / 业务规则 / 异常边界 / 设计参考 / 待确认项 / 知识库引用。「本次不包含」必填，避免范围蔓延。</p>
@@ -1659,59 +1652,6 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
       <div class="fld"><code>annotations</code><div><h4>交互标注</h4><p>关键交互节点的结构化描述，供 Inspect 模式高亮叠加展示</p></div></div>
       <div class="fld"><code>pages</code><div><h4>多页面路由</h4><p>多页面场景下的路由信息数组，每项含 title + code/spec</p></div></div>
     </div>
-  </div>
-</section>
-
-<section class="slide" id="lyj-k3parse" data-title="3 层兜底解析器" data-time="1 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">KEY 3 · 输出协议</div>
-    <h2 class="t">3 层兜底解析器</h2>
-    <p class="sub">AI 的输出永远不是 100% 规则的——即使 Prompt 写得再严格，实际输出也可能有转义错误、尾部逗号、markdown 包裹等偏差。解析器必须逐层兜底，确保平台稳定性。</p>
-    <div class="fsteps" style="margin-top:16px">
-      <div class="fstep on">
-        <div class="hd"><span class="sn">第 1 层</span><h4>严格 JSON.parse</h4></div>
-        <p>最快路径——标准 JSON 解析。绝大多数正常输出在这一层完成。</p>
-      </div>
-      <div class="fstep">
-        <div class="hd"><span class="sn">第 2 层</span><h4>逐字段正则提取</h4></div>
-        <p>逐一用 extractTopLevelStringField 扫描顶层字段，处理转义偏差、尾部多余逗号等。</p>
-      </div>
-      <div class="fstep">
-        <div class="hd"><span class="sn">第 3 层</span><h4>代码块兜底</h4></div>
-        <p>从 Markdown tsx 代码块中提取可执行内容——最后兜底。</p>
-      </div>
-    </div>
-    <p class="quote a">设计原则：宁可降级解析，也不让用户看到报错空白。</p>
-  </div>
-</section>
-
-<section class="slide" id="lyj-k3ann" data-title="标注协议与替代路径" data-time="1.5 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">KEY 3 · 输出协议</div>
-    <h2 class="t">交互标注协议</h2>
-    <p class="sub">AI 不仅输出 UI，还输出交互说明——通过 annotations 字段 + data-damai-tour 属性实现 Inspect 模式叠加</p>
-    <div class="two" style="margin-top:16px;gap:16px">
-      <div class="kcard">
-        <div class="k-i">工作机制</div>
-        <p>AI 在关键元素 props 中标记 <b>data-damai-tour="search-trigger"</b></p>
-        <p style="margin-top:8px">annotations 数组中以相同 id 携带标题 + 交互描述</p>
-        <p style="margin-top:8px">前端 Inspect 模式根据 id 匹配 DOM 元素，高亮并展示 tooltip</p>
-      </div>
-      <div class="kcard">
-        <div class="k-i">设计价值</div>
-        <p>设计师交付给开发时，交互说明直接附在 UI 上</p>
-        <p style="margin-top:8px">替代传统的「交互文档 + 标注截图」模式</p>
-        <p style="margin-top:8px">AI 在设计时就思考交互逻辑，而非事后补标注</p>
-      </div>
-    </div>
-    <h3 class="sec">澄清作为替代输出路径</h3>
-    <p class="sub">当需求模糊时，AI 不会硬着头皮生成——而是输出结构化澄清问题，等用户回答后再继续。这也是输出协议的一部分。</p>
-    <div class="kcard" style="margin-top:12px">
-      <div class="k-i">两种触发机制</div>
-      <p><b>机制 1 · JSON 字段输出</b>　AI 直接输出 clarification_questions 字段（不含 code/spec），前端渲染为问题卡片 UI</p>
-      <p style="margin-top:8px"><b>机制 2 · Tool Use 中断</b>　AI 调用 ask_user_question 工具暂停生成流，前端拦截工具调用、收集答案后注入 tool_result 继续生成</p>
-    </div>
-    <p class="quote a">核心理念：输出协议不是一个固定格式，而是一棵决策树——根据需求清晰度动态选择输出路径。</p>
   </div>
 </section>
 
@@ -1867,22 +1807,6 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
   </div>
 </section>
 
-<section class="slide" id="lyj-k5dec" data-title="关键设计决策 Why" data-time="1.5 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">KEY 5 · 迭代编辑</div>
-    <h2 class="t">关键设计决策 · Why</h2>
-    <p class="sub">每个选择背后都有明确的取舍逻辑</p>
-    <div class="rlayers">
-      <div class="rrow"><div class="lv num">01</div><div><h4>为什么按页面隔离对话？</h4><p>每个页面是独立的设计上下文；混合多页面对话会导致 AI 输出混乱。</p></div><span class="tag">隔离性</span></div>
-      <div class="rrow"><div class="lv num">02</div><div><h4>开发阶段为什么用 localStorage？</h4><p>本地优先 → 零网络延迟，快速验证；生产环境已迁移到服务端 MySQL。</p></div><span class="tag">演进加速</span></div>
-      <div class="rrow"><div class="lv num">03</div><div><h4>为什么只在 Code 模式注入当前代码？</h4><p>JSON Spec 模式下注入代码会让 LLM「看到 JSX」而强行切到 code 模式输出，破坏 render_mode 决策逻辑。</p></div><span class="tag">模式保护</span></div>
-      <div class="rrow"><div class="lv num">04</div><div><h4>为什么截断 16 条而不是全量传入？</h4><p>Token 窗口有限；知识库 + System Prompt 已占据相当比例，留给对话历史的预算有限。</p></div><span class="tag">TOKEN 预算</span></div>
-      <div class="rrow"><div class="lv num">05</div><div><h4>为什么用「静默注入」而不是让用户看到包裹后的消息？</h4><p>用户只关心自己的修改指令；展示技术包装会干扰阅读，也无法编辑。</p></div><span class="tag">用户体验</span></div>
-    </div>
-    <p class="quote a">总结：多轮迭代的本质是「状态持续性」——画布状态 + 对话历史 + 渲染模式，三者同步保存、同步恢复。</p>
-  </div>
-</section>
-
 <section class="slide" id="lyj-pano" data-title="系统架构全景" data-time="1.5 min" data-spk="平台">
   <div class="slide-in">
     <div class="kick">系统全景</div>
@@ -1896,31 +1820,12 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
       <div class="rs"><div class="n">05</div><h4>协议解析</h4><p>3 层鲁棒 JSON 解析。多字段结构化提取。处理截断 / 格式异常。</p><span class="tag">解析层</span></div>
       <div class="rs"><div class="n">06</div><h4>渲染输出</h4><p>JSON Schema 精确模式。JSX Code 灵活模式。交互标注 + Dev 预览。</p><span class="tag">渲染层</span></div>
     </div>
-    <div class="grid4" style="margin-top:14px">
-      <div class="kcard" style="padding:14px 16px">
-        <div class="k-i">设计资产管理</div>
-        <p>注入面板：知识文件管理 + 排序。在线编辑 + 实时预览。对比不同 Prompt 效果。</p>
-      </div>
-      <div class="kcard" style="padding:14px 16px">
-        <div class="k-i">Zustand 状态持久化</div>
-        <p>三层数据：项目 / 页面 / 消息。MySQL 跨会话持久化。历史对话随时一键恢复。</p>
-      </div>
-      <div class="kcard" style="padding:14px 16px">
-        <div class="k-i">服务端 Node.js</div>
-        <p>用户登录鉴权。LLM API 网关。数据库服务。生产部署。</p>
-      </div>
-      <div class="kcard" style="padding:14px 16px">
-        <div class="k-i">双渲染引擎路由</div>
-        <p>JSON Schema → 组件注册表。JSX Code → 动态运行时。render_mode 自动路由。</p>
-      </div>
-    </div>
     <p class="quote a">各模块边界清晰、相互解耦 —— 需求澄清、知识注入、推理引擎、渲染器均可独立迭代升级。</p>
   </div>
 </section>
 
 <section class="slide" id="lyj-reuse" data-title="可复用的经验" data-time="2 min" data-spk="方法">
   <div class="slide-in">
-    <div class="kick">认知一</div>
     <h2 class="t">可复用的经验</h2>
     <p class="sub">从这个项目提炼出来 —— 适用于任何 AI Coding 构建 AI Agent 系统的场景</p>
     <div class="grid2 mt">
@@ -1960,7 +1865,6 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
 
 <section class="slide" id="lyj-gold" data-title="与 AI 协作的 5 条黄金法则" data-time="2 min" data-spk="方法">
   <div class="slide-in">
-    <div class="kick">认知二</div>
     <h2 class="t">与 AI 协作的 5 条黄金法则</h2>
     <p class="sub">这些规则适用于所有 AI Coding 工具，无论是 Claude Code、Cursor、Copilot 还是扣子编程。</p>
     <div class="grules">
@@ -1993,55 +1897,8 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
   </div>
 </section>
 
-<section class="slide" id="lyj-trig" data-title="工具触发的 4 种底层模式" data-time="1.5 min" data-spk="方法">
-  <div class="slide-in">
-    <div class="kick">认知三</div>
-    <h2 class="t">工具触发的 4 种底层模式</h2>
-    <p class="sub">所有 AI Coding 工具的能力激活方式，都可以归纳为这 4 种模式 —— 理解它们，就知道如何最大化工具效能。</p>
-    <div class="grid4 mt">
-      <div class="kcard">
-        <div class="k-i">01</div>
-        <h4>自动预加载</h4>
-        <p>会话启动即生效，无需操作。例：基础规则、环境初始化</p>
-      </div>
-      <div class="kcard">
-        <div class="k-i">02</div>
-        <h4>语义触发</h4>
-        <p>自然语言描述即可激活。例：「帮我看看这个页面」→ 浏览器工具</p>
-      </div>
-      <div class="kcard">
-        <div class="k-i">03</div>
-        <h4>描述匹配</h4>
-        <p>AI 根据任务自主判断。例：写认证功能 → 安全审查工具</p>
-      </div>
-      <div class="kcard">
-        <div class="k-i">04</div>
-        <h4>手动调用</h4>
-        <p>明确指定使用某个工具。例：需要精确控制时</p>
-      </div>
-    </div>
-    <p class="quote a">核心洞察：任务描述越精确，语义触发和描述匹配越稳定。「写个登录」可能什么都不触发；「实现带 JWT 认证的登录接口」能精准激活安全审查、API 设计等工具。</p>
-  </div>
-</section>
-
-<section class="slide" id="lyj-tlayer" data-title="分层工具架构思维" data-time="1.5 min" data-spk="方法">
-  <div class="slide-in">
-    <div class="kick">认知四</div>
-    <h2 class="t">分层工具架构思维</h2>
-    <p class="sub">无论你用什么 AI Coding 工具组合，都可以按这个 5 层模型来理解和组织它们的能力</p>
-    <div class="rlayers">
-      <div class="rrow"><div class="lv">L0</div><div><h4>行为守卫层</h4><p>全程激活的基础规则，确保 AI 不做危险操作。安全规则、代码风格约束、行为准则。</p></div></div>
-      <div class="rrow"><div class="lv">L1</div><div><h4>生命周期框架层</h4><p>端到端的开发流水线，从规划到发布。规划 → 实现 → 审查 → 发布 → 监控。</p></div></div>
-      <div class="rrow"><div class="lv">L2</div><div><h4>专项工具层</h4><p>按任务类型按需激活的专业能力。浏览器、测试、安全审查、搜索等。</p></div></div>
-      <div class="rrow"><div class="lv">L3</div><div><h4>上下文增强层</h4><p>按任务补充项目知识、文件与外部能力。MCP、知识库、代码索引。</p></div></div>
-      <div class="rrow"><div class="lv">L4</div><div><h4>质量验证层</h4><p>交付前的最终质量关卡。QA 测试 · 性能基准 · 部署后监控。</p></div></div>
-    </div>
-  </div>
-</section>
-
 <section class="slide" id="lyj-fatal" data-title="3 个致命误区" data-time="2 min" data-spk="方法">
   <div class="slide-in">
-    <div class="kick">认知五</div>
     <h2 class="t">3 个致命误区</h2>
     <p class="sub">这些误区不是「新手问题」—— 即使使用了很久 AI Coding 的人也经常犯</p>
     <div class="fatals">
@@ -2081,6 +1938,17 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
       <div class="litem"><div class="n">3</div><p>AI Coding 的本质是：你负责方向和判断，AI 负责速度和执行</p></div>
     </div>
     <p class="quote a">真相：AI 时代更需要放大的是判断力。能清楚地定义问题、拆解任务、验证结果的人，无论工具怎么迭代，总能更大受益。</p>
+  </div>
+</section>
+
+<section class="slide" id="s-thanks" data-title="感谢聆听" data-time="0.5 min" data-spk="方法">
+  <div class="glow" style="width:640px;height:480px;background:radial-gradient(circle,rgba(52,224,161,.14),transparent 65%);top:12%;left:18%"></div>
+  <div class="glow" style="width:520px;height:420px;background:radial-gradient(circle,rgba(91,155,255,.12),transparent 65%);bottom:8%;right:12%"></div>
+  <div class="slide-in close">
+    <div class="kick">Thank you</div>
+    <h2>感谢大家聆听</h2>
+    <p class="lede">欢迎提问与讨论</p>
+    <p class="foot">分享人 斯琴托娅 · 众安 UED 内部分享</p>
   </div>
 </section>
 
