@@ -528,6 +528,20 @@ section[data-spk="问题"] .kcard:hover{border-color:rgba(91,155,255,.4)}
 .shot ol{margin:0;padding-left:18px}
 .shot li{font-size:13px;color:var(--tx-2);line-height:1.65;padding:2px 0}
 
+/* 澄清对话实例 · 聊天气泡 */
+.chat{display:flex;flex-direction:column;gap:14px;margin-top:18px;max-width:880px}
+.msg{display:flex;flex-direction:column;gap:6px;max-width:84%}
+.msg.user{align-self:flex-end;align-items:flex-end}
+.msg .who{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--tx-3);text-transform:uppercase}
+.msg .bubble{padding:12px 16px;border-radius:14px;font-size:13.5px;line-height:1.7;color:var(--tx)}
+.msg.user .bubble{background:rgba(91,155,255,.14);border:1px solid rgba(91,155,255,.35)}
+.msg.ai .bubble{background:var(--card);border:1px solid var(--line)}
+.msg.ai .bubble b{color:var(--g);font-weight:600}
+.msg .q{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:13px;color:var(--tx-2)}
+.msg .q:first-of-type{margin-top:12px}
+.msg .qn{font-family:var(--mono);font-size:10.5px;color:var(--b);font-weight:700;letter-spacing:.05em;flex-shrink:0}
+.msg .opt{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid rgba(52,224,161,.4);background:rgba(52,224,161,.1);color:var(--g);white-space:nowrap}
+
 .grules{display:flex;flex-direction:column;gap:8px;margin-top:18px}
 .grule{padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
 .grule h4{margin:0 0 6px}
@@ -583,9 +597,6 @@ section[data-spk="问题"] .kcard:hover{border-color:rgba(91,155,255,.4)}
   margin-top:32px;padding-top:16px;border-top:1px solid var(--line);
   font-size:12px;color:var(--tx-3);line-height:1.7;letter-spacing:.04em;
 }
-#s-thanks{justify-content:center;padding-top:64px;padding-bottom:80px}
-#s-thanks .slide-in{margin:0 auto}
-
 /* 议程 */
 .agenda{display:flex;flex-direction:column;gap:8px;margin-top:28px;max-width:860px}
 .agi{display:grid;grid-template-columns:56px 1fr;gap:18px;align-items:center;padding:18px 20px;border-radius:14px;border:1px solid transparent;transition:.3s var(--ease);background:rgba(255,255,255,.015)}
@@ -1422,19 +1433,31 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
       <div class="kk"><div class="n">05</div><h4>生成准确<br>设计产物</h4></div>
     </div>
     <div class="pre-grid" style="margin-top:18px">
-      <div class="pre-card">
-        <div class="k-i">底层实现</div>
-        <p><b>澄清 Agent prompt 约束</b> —— 定义 AI 应该问什么类型的问题，怎么梳理不确定信息</p>
-        <p style="margin-top:8px"><b>业务知识库配合</b> —— 让 AI 了解大麦 B 端业务背景，才能问出有价值的问题</p>
-        <p style="margin-top:8px"><b>结构化选项设计</b> —— 不是开放式问答，而是前置选项点击，降低用户回答成本</p>
+      <div class="chat" style="margin-top:0;max-width:none;gap:10px">
+        <div class="msg user">
+          <div class="who">我 · 输入</div>
+          <div class="bubble">生成一个管理页面</div>
+        </div>
+        <div class="msg ai" style="max-width:100%">
+          <div class="who">AI · 我的初步理解</div>
+          <div class="bubble" style="font-size:12.5px">
+            你需要一个管理页面。在开始设计前，有 <b>3 个关键问题</b>需要确认，以避免方向偏差：
+            <div class="q" style="margin-top:8px;padding-top:8px"><span class="qn">Q1</span>管理什么业务对象？<span class="opt">演出 / 票务管理</span></div>
+            <div class="q" style="margin-top:6px;padding-top:6px"><span class="qn">Q2</span>核心功能形态？<span class="opt">列表查询 + 筛选（最常见）</span></div>
+            <div class="q" style="margin-top:6px;padding-top:6px"><span class="qn">Q3</span>需要哪些核心操作？<span class="opt">新增 / 编辑 / 删除</span></div>
+          </div>
+        </div>
+        <div class="msg ai" style="max-width:100%">
+          <div class="who">AI · 推理整理过程</div>
+          <div class="bubble" style="font-size:12.5px">已生成<b>演出票务管理列表页</b>：搜索区（名称 / 状态 / 时间三个筛选项）+ 数据表格（5 条 mock 数据，含状态 Tag 与差异化操作列）+ 分页组件，共标注 <b>4 处交互节点</b>。</div>
+        </div>
       </div>
       <div class="pre-side">
         <div class="pre-card">
-          <div class="k-i">典型澄清场景</div>
-          <p><b>页面类型</b> —— 是列表页、表单页，还是详情页？</p>
-          <p style="margin-top:6px"><b>数据规模</b> —— 表格大概几列？有没有批量操作？</p>
-          <p style="margin-top:6px"><b>业务状态</b> —— 有哪些状态流转？对应什么操作？</p>
-          <p style="margin-top:6px"><b>交互要求</b> —— 需要内联编辑吗？有没有权限控制？</p>
+          <div class="k-i">底层实现</div>
+          <p><b>澄清 Agent prompt 约束</b> —— 定义 AI 应该问什么类型的问题，怎么梳理不确定信息</p>
+          <p style="margin-top:8px"><b>业务知识库配合</b> —— 让 AI 了解大麦 B 端业务背景，才能问出有价值的问题</p>
+          <p style="margin-top:8px"><b>结构化选项设计</b> —— 不是开放式问答，而是前置选项点击，降低用户回答成本</p>
         </div>
         <div class="pre-card hot">
           <div class="k-i">效果</div>
@@ -1692,40 +1715,7 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
   </div>
 </section>
 
-<section class="slide" id="lyj-k4over" data-title="多渲染引擎" data-time="1.5 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">KEY 4 · 渲染引擎</div>
-    <h2 class="t">多渲染引擎</h2>
-    <p class="sub">一套系统不够用——不同场景需要不同的渲染策略</p>
-    <div class="analogy" style="margin-top:20px;max-width:none">
-      <div class="ana">
-        <div class="lab">JSON SCHEMA 模式</div>
-        <h4>结构化 · 精确</h4>
-        <ul>
-          <li>Zod Schema 验证，类型安全</li>
-          <li>30+ 大麦 B 端组件直接映射</li>
-          <li>列表页 / 表单页 / 详情页等标准页面</li>
-          <li>像素级还原大麦规范，零漂移</li>
-        </ul>
-        <p class="foot">适合需求明确的标准 B 端页面</p>
-      </div>
-      <div class="ana">
-        <div class="lab">JSX CODE 模式</div>
-        <h4>灵活 · 探索</h4>
-        <ul>
-          <li>react-runner 本地执行 JSX</li>
-          <li>自由组合任意组件和逻辑</li>
-          <li>复杂交互 / 特殊布局 / 探索性需求</li>
-          <li>灵活度最高，但需要规范约束</li>
-        </ul>
-        <p class="foot">适合复杂交互或需要快速探索的场景</p>
-      </div>
-    </div>
-    <p class="quote a">AI 自行判断用哪种模式——通过 render_mode 字段决策，无需用户手动切换。</p>
-  </div>
-</section>
-
-<section class="slide" id="lyj-k4dual" data-title="一套引擎不够用" data-time="1 min" data-spk="平台">
+<section class="slide" id="lyj-k4dual" data-title="多渲染引擎" data-time="1 min" data-spk="平台">
   <div class="slide-in">
     <div class="kick">KEY 4 · 渲染引擎</div>
     <h2 class="t">一套渲染引擎不够用——不同场景需要不同的渲染策略与预览方式</h2>
@@ -1759,33 +1749,7 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
         <p class="foot">适合：复杂交互 / 非标页面 / 快速探索</p>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="slide" id="lyj-k4fall" data-title="优雅降级策略" data-time="1 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">KEY 4 · 渲染引擎</div>
-    <h2 class="t">优雅降级策略</h2>
-    <p class="sub">容错是第一优先级 —— 用户不应该因为 AI 选错模式而看到白屏</p>
-    <div class="fsteps" style="margin-top:16px">
-      <div class="fstep">
-        <div class="hd"><span class="sn">01</span><h4>JSON 渲染尝试</h4></div>
-        <p>@json-render/react 解析 spec，ErrorBoundary 捕获异常</p>
-      </div>
-      <div class="fstep">
-        <div class="hd"><span class="sn">02</span><h4>错误检测</h4></div>
-        <p>spec 格式无效 / 组件渲染 throw → 触发 onFallback 回调</p>
-      </div>
-      <div class="fstep">
-        <div class="hd"><span class="sn">03</span><h4>自动降级</h4></div>
-        <p>切换 renderMode 为 code，由 react-runner 接管渲染</p>
-      </div>
-      <div class="fstep on">
-        <div class="hd"><span class="sn">04</span><h4>用户无感</h4></div>
-        <p>降级过程自动完成，用户看到的始终是可用的渲染结果</p>
-      </div>
-    </div>
-    <p class="quote a">设计铁律：无论 AI 输出什么，用户看到的永远是一个可交互的渲染结果，而不是报错页。</p>
+    <p class="quote a">AI 自行判断用哪种模式——通过 render_mode 字段决策，无需用户手动切换。</p>
   </div>
 </section>
 
@@ -1866,67 +1830,6 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
         <p>一个产品有数十个页面，每个页面有多轮设计迭代，缺乏有效的组织和检索手段。</p>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="slide" id="lyj-k5data" data-title="数据架构三层模型" data-time="1 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">KEY 5 · 迭代编辑</div>
-    <h2 class="t">数据架构 · 三层模型</h2>
-    <p class="sub">Project → Page → Conversation。每一层有明确的职责边界，保证多页面、多会话互不干扰。</p>
-    <div class="fsteps" style="margin-top:16px">
-      <div class="fstep">
-        <div class="hd"><span class="sn">Project</span><h4>项目</h4></div>
-        <p>一个产品 / 业务域，如「大麦商家端」。</p>
-        <p style="margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--a)">id · name · description · status · isFavorited</p>
-      </div>
-      <div class="fstep">
-        <div class="hd"><span class="sn">Page</span><h4>页面</h4></div>
-        <p>项目下的某个页面，如「演出管理列表」。</p>
-        <p style="margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--a)">id · projectId · name · sortOrder</p>
-      </div>
-      <div class="fstep">
-        <div class="hd"><span class="sn">Conversation</span><h4>对话</h4></div>
-        <p>页面下的独立设计会话，包含完整的消息历史和画布状态。</p>
-        <p style="margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--a)">messages[] · currentCode · currentSpec · currentRenderMode · currentAnnotations</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="slide" id="lyj-k5inject" data-title="上下文静默注入" data-time="1.5 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">KEY 5 · 迭代编辑</div>
-    <h2 class="t">核心机制 · 上下文静默注入</h2>
-    <p class="sub">用户只输入修改指令，平台在幕后将当前画布代码包裹注入——AI 看到完整上下文，精准修改；用户无感知。</p>
-    <div class="two-w" style="margin-top:16px;align-items:stretch">
-      <div class="kcard" style="margin:0">
-        <div class="k-i">buildIterativeUserMessage()</div>
-        <div class="code" style="font-size:12px;margin-top:8px"><span class="k">function</span> <span class="s">buildIterativeUserMessage</span>(<span class="p">userMsg</span>, <span class="p">currentCode</span>) {<br>
-&nbsp;&nbsp;<span class="k">return</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">`【当前画布代码 - 请基于此代码进行局部修改】`</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="s">`以下是完整 React 代码，执行修改指令后输出全量代码：`</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="s">`tsx\n${currentCode}`</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;+ <span class="s">`【本次修改指令】\n${userMsg}`</span><br>
-}
-        </div>
-      </div>
-      <div class="fsteps">
-        <div class="fstep">
-          <div class="hd"><span class="sn">场景 1</span><h4>画布是 Code 模式，且已有渲染代码</h4></div>
-          <p>→ 将当前完整代码包裹注入到用户消息中。原因：AI 看到完整上下文，可精准局部修改。</p>
-        </div>
-        <div class="fstep">
-          <div class="hd"><span class="sn">场景 2</span><h4>画布是 JSON Spec 模式</h4></div>
-          <p>→ 不注入代码上下文。原因：避免 LLM 被代码「锁定」到 code 模式，保持 render_mode 灵活选择。</p>
-        </div>
-        <div class="fstep">
-          <div class="hd"><span class="sn">场景 3</span><h4>首次对话（画布为空）</h4></div>
-          <p>→ 不注入，正常生成。原因：无历史状态可注入。</p>
-        </div>
-      </div>
-    </div>
-    <p class="quote a">关键洞察：模式保护比上下文完整性优先级更高——注入错误上下文不如不注入。</p>
   </div>
 </section>
 
@@ -2012,124 +1915,6 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
       </div>
     </div>
     <p class="quote a">各模块边界清晰、相互解耦 —— 需求澄清、知识注入、推理引擎、渲染器均可独立迭代升级。</p>
-  </div>
-</section>
-
-<section class="slide" id="lyj-stack" data-title="技术栈全景" data-time="1 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">系统全景</div>
-    <h2 class="t">技术栈全景</h2>
-    <p class="sub">4 层架构，每一层都有具体的技术选型和设计考量</p>
-    <div class="grid4 cols4 mt">
-      <div class="kcard">
-        <div class="k-i">前端工程层</div>
-        <div class="keys tight"><span>React 19 + TS 5.9</span><span>Vite 6</span><span>Tailwind CSS 4</span><span>Zustand 5</span><span>Ant Design 5 / damai-ui</span><span>ECharts 6</span></div>
-        <p style="margin-top:12px">React 19 + Vite 6 极速开发。Zustand 管理项目 / 页面 / 对话三层数据。</p>
-      </div>
-      <div class="kcard">
-        <div class="k-i">LLM 推理层</div>
-        <div class="keys tight"><span>Anthropic Messages</span><span>OpenAI 镜像协议</span><span>流式 SSE</span><span>知识文件动态注入</span><span>PDF / Word 解析</span><span>结构化澄清</span></div>
-        <p style="margin-top:12px">双协议原生支持、流式输出 + 多格式文件理解，智能触发澄清后再生成。</p>
-      </div>
-      <div class="kcard">
-        <div class="k-i">渲染引擎层</div>
-        <div class="keys tight"><span>@json-render/react</span><span>react-runner</span><span>Zod 4</span><span>render_mode 路由</span><span>damai-ui</span><span>Dev 预览</span></div>
-        <p style="margin-top:12px">JSON Schema 精确映射 B 端标准组件，JSX Code 灵活执行任意设计，双模式自动路由。</p>
-      </div>
-      <div class="kcard">
-        <div class="k-i">服务端 &amp; 部署</div>
-        <div class="keys tight"><span>Express 4</span><span>BUC SSO</span><span>LLM 反向代理</span><span>MySQL</span><span>Docker + AONE</span><span>签名 Cookie</span></div>
-        <p style="margin-top:12px">Express 处理鉴权与代理，MySQL 持久化项目 / 意图 / 对话，Docker 一键部署。</p>
-      </div>
-    </div>
-    <p class="quote a">每一层的技术选型都不是随机的 —— 背后有对「这一层的核心问题是什么」的清晰判断。</p>
-  </div>
-</section>
-
-<section class="slide" id="lyj-pit1" data-title="坑 01 假 JSON" data-time="1 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">坑 01</div>
-    <h2 class="t">AI 输出的「JSON」经常是假 JSON</h2>
-    <div class="analogy" style="margin-top:22px;max-width:none">
-      <div class="ana bad">
-        <div class="lab">现象</div>
-        <h4>你让它返回 JSON，它返回的是：</h4>
-        <ul>
-          <li>Markdown 代码块包裹的 JSON</li>
-          <li>含有注释的 JSON（// 这里是…）</li>
-          <li>多余的尾部逗号</li>
-          <li>截断不完整的 JSON（token 超限）</li>
-          <li>在 JSON 前后附带解释文字</li>
-        </ul>
-        <p class="foot">直接 JSON.parse() 会崩溃 —— 但你又不能不用 JSON</p>
-      </div>
-      <div class="ana good">
-        <div class="lab">解法 · 3 层防护解析器</div>
-        <ul>
-          <li>严格 JSON.parse —— 最理想情况，直接解析</li>
-          <li>字段逐一正则提取 —— 应对轻微格式偏差</li>
-          <li>代码块兜底提取 —— 从代码块中拯救有效内容</li>
-        </ul>
-        <p class="foot">教训：不要假设 AI 会完美遵守格式约定 —— 系统必须能优雅降级</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="slide" id="lyj-pit2" data-title="坑 02 未验证的假设" data-time="1.5 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">坑 02</div>
-    <h2 class="t">在未验证的假设上继续构建</h2>
-    <p class="sub">最贵的 bug 往往来自最早的假设</p>
-    <div class="analogy" style="margin-top:20px;max-width:none">
-      <div class="ana bad">
-        <div class="lab">真实发生过的错误假设</div>
-        <ul>
-          <li>「AI 一定会按协议格式输出」</li>
-          <li>「组件名 AI 一定能认识」</li>
-          <li>「知识文件注入了就等于 AI 看懂了」</li>
-          <li>「多轮对话时上下文自动保留」</li>
-        </ul>
-      </div>
-      <div class="ana good">
-        <div class="lab">每个假设都必须用真实数据验证</div>
-        <ul>
-          <li>写完知识注入之后：发一条真实请求，看 AI 输出是否符合要求</li>
-          <li>写完解析器之后：拿几十条真实 LLM 回复跑一遍，验证解析逻辑</li>
-          <li>加了一个新组件之后：先跑通端到端，再去加下一个</li>
-        </ul>
-        <p class="foot">教训：感觉对 ≠ 验证过 —— 每一个层面都要有明确的验证动作和通过标准</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="slide" id="lyj-pit3" data-title="坑 03 AI 失忆" data-time="1.5 min" data-spk="平台">
-  <div class="slide-in">
-    <div class="kick">坑 03</div>
-    <h2 class="t">对话越来越长，AI 开始「失忆」</h2>
-    <p class="sub">上下文窗口是有限的 —— 当它被塞满，最初的约定会被悄悄遗忘</p>
-    <div class="analogy" style="margin-top:20px;max-width:none">
-      <div class="ana bad">
-        <div class="lab">典型症状</div>
-        <ul>
-          <li>前面说好「用 CSS 变量」，后面开始硬编码色值</li>
-          <li>之前确认过的组件写法，AI 突然换成另一套</li>
-          <li>CLAUDE.md 里的明文规定，在长对话里开始失效</li>
-          <li>反复纠正同一个问题，但 AI 就是「记不住」</li>
-        </ul>
-        <p class="foot">问题不是 AI 变笨了 —— 是上下文里的「规则信号」被稀释了</p>
-      </div>
-      <div class="ana good">
-        <div class="lab">做法 · 3 个习惯</div>
-        <ul>
-          <li>开新对话 —— 一个功能做完了，切断窗口，别在同一个 session 里拖太长</li>
-          <li>把规则写进文件 —— 重要约束不要靠口头说，写进 CLAUDE.md 和 rules，每次对话 AI 会自动读</li>
-          <li>发现偏移，立即追加 —— 一旦违背某条规则，立刻在 prompt 里重申，别忍着往后堆</li>
-        </ul>
-        <p class="foot">核心：AI 的「记忆」来自上下文，不是真正的记忆 —— 规则化，是让它长期稳定执行的唯一可靠方式</p>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -2296,17 +2081,6 @@ body.has-cursor .flex-modal,body.has-cursor .flex-modal *{cursor:auto}
       <div class="litem"><div class="n">3</div><p>AI Coding 的本质是：你负责方向和判断，AI 负责速度和执行</p></div>
     </div>
     <p class="quote a">真相：AI 时代更需要放大的是判断力。能清楚地定义问题、拆解任务、验证结果的人，无论工具怎么迭代，总能更大受益。</p>
-  </div>
-</section>
-
-<section class="slide" id="s-thanks" data-title="感谢聆听" data-time="0.5 min" data-spk="方法">
-  <div class="glow" style="width:640px;height:480px;background:radial-gradient(circle,rgba(52,224,161,.14),transparent 65%);top:12%;left:18%"></div>
-  <div class="glow" style="width:520px;height:420px;background:radial-gradient(circle,rgba(91,155,255,.12),transparent 65%);bottom:8%;right:12%"></div>
-  <div class="slide-in close">
-    <div class="kick">Thank you</div>
-    <h2>感谢大家聆听</h2>
-    <p class="lede">欢迎提问与讨论</p>
-    <p class="foot">分享人 斯琴托娅 · 众安 UED 内部分享</p>
   </div>
 </section>
 
